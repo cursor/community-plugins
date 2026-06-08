@@ -317,17 +317,21 @@ const REPO_ARCHIVE_MAX_BYTES = 100 * 1024 * 1024;
 // points at a path that may not exist or be read-only (`/home/sbx_user...`).
 // The Cursor SDK persists local-agent state under `~/.cursor/projects/...` by
 // default, which crashed every scan with `mkdir ENOENT` (see
-// cursor/community-plugins#395). A single stable dir — not per-scan — so a
-// warm function instance reuses one run store instead of opening a new
-// sqlite handle per scan.
+// cursor/community-plugins#395). A stable writable home keeps the spawned
+// `cursor-agent` process and the SDK's `homedir()` fallbacks happy; the
+// per-run store lives in its own subdir (see `redirectSdkStateToTmp`).
 const SDK_STATE_HOME = path.join(tmpdir(), "cursor-sdk-home");
 
 /**
- * Point every Cursor SDK state surface at writable tmpfs and return the
+ * Point every Cursor SDK state surface at writable tmpfs and return a fresh
  * `stateRoot` to pass to `Agent.prompt`:
  *
  * - `platform.stateRoot` covers the SDK's in-process run/checkpoint stores
- *   (the `sdk-agent-store` path that failed in production).
+ *   (the `sdk-agent-store` path that failed in production). Fluid Compute can
+ *   run several scans concurrently on one warm instance, so each scan gets its
+ *   own `stateRoot`: a shared run store lets two `Agent.prompt` calls race on
+ *   the same sqlite handle / run metadata. The caller removes it when the scan
+ *   finishes so tmpfs doesn't accumulate stores.
  * - `HOME` / `CURSOR_CONFIG_DIR` / `CURSOR_DATA_DIR` cover the spawned
  *   `cursor-agent` process and the SDK's remaining `homedir()` fallbacks.
  *
@@ -337,13 +341,11 @@ const SDK_STATE_HOME = path.join(tmpdir(), "cursor-sdk-home");
  */
 async function redirectSdkStateToTmp(): Promise<string> {
   const cursorDir = path.join(SDK_STATE_HOME, ".cursor");
-  const stateRoot = path.join(SDK_STATE_HOME, "sdk-agent-store");
   process.env.HOME = SDK_STATE_HOME;
   process.env.CURSOR_CONFIG_DIR = cursorDir;
   process.env.CURSOR_DATA_DIR = cursorDir;
   await mkdir(cursorDir, { recursive: true });
-  await mkdir(stateRoot, { recursive: true });
-  return stateRoot;
+  return mkdtemp(path.join(SDK_STATE_HOME, "sdk-agent-store-"));
 }
 
 function archiveSizeGuard(tag: string) {
@@ -394,7 +396,22 @@ async function cloneRepo(
       maxWaitMs: 30_000,
     });
 
-    if ([404, 410, 451].includes(response.status)) {
+    // GitHub deterministically refuses some repos: 404/410/451 (missing,
+    // gone, DMCA'd) plus a permission 403 (private/forbidden). Re-fetching
+    // won't change the answer, so they resolve to the manual-review verdict.
+    // A 403 only counts as a permission denial when it isn't rate-limiting:
+    // `fetchWithRateLimit` returns an auth-style 403 immediately when
+    // `x-ratelimit-remaining > 0`, but exhausts retries on true rate-limit
+    // 403/429s (remaining 0), which must stay retryable.
+    const rateLimitRemaining = Number(
+      response.headers.get("x-ratelimit-remaining") ?? "",
+    );
+    const isPermissionDenied =
+      response.status === 403 &&
+      Number.isFinite(rateLimitRemaining) &&
+      rateLimitRemaining > 0;
+
+    if ([404, 410, 451].includes(response.status) || isPermissionDenied) {
       throw new UnscannableRepoError(
         `GitHub returned ${response.status} for ${owner}/${repo} — the repository does not exist or is not public.`,
       );
@@ -500,8 +517,9 @@ async function runSecurityAgent(
     throw err;
   }
 
+  let stateRoot: string | undefined;
   try {
-    const stateRoot = await redirectSdkStateToTmp();
+    stateRoot = await redirectSdkStateToTmp();
     const prompt = buildPrompt(plugin, { hasRepo, similar });
     logInfo(tag, "Agent.prompt start", {
       cwd,
@@ -559,6 +577,11 @@ async function runSecurityAgent(
     return { ...verdict, runId: result.id };
   } finally {
     await cleanup();
+    // Drop this scan's run store so a warm instance doesn't accumulate
+    // sqlite dirs on tmpfs across scans.
+    if (stateRoot) {
+      await rm(stateRoot, { recursive: true, force: true }).catch(() => {});
+    }
   }
 }
 
