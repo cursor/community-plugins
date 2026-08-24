@@ -80,16 +80,6 @@ function asBotRow(row: Record<string, unknown>): BotRow {
   };
 }
 
-function unresolvedBotNeeds(needs: BotNeed[]): ResolvedBotNeed[] {
-  return needs.map((need) => {
-    if (need.kind === "skill") return need;
-    return {
-      ...need,
-      href: need.slug ? `/plugins/${need.slug}` : null,
-    };
-  });
-}
-
 async function resolveBotNeeds(needs: BotNeed[]): Promise<ResolvedBotNeed[]> {
   const slugs = needs.flatMap((n) =>
     n.kind === "plugin" && n.slug ? [n.slug] : [],
@@ -108,7 +98,7 @@ async function resolveBotNeeds(needs: BotNeed[]): Promise<ResolvedBotNeed[]> {
         hrefBySlug.set(plugin.slug, `/plugins/${plugin.slug}`);
       }
     } catch {
-      return unresolvedBotNeeds(needs);
+      // Leave hrefBySlug empty so href stays null, same as a missing plugin.
     }
   }
 
@@ -757,10 +747,11 @@ export async function getBots({
       data: (data ?? []).map((row) => asBotRow(row as Record<string, unknown>)),
       error,
     };
-  } catch {
-    // Cache Components prerenders /bots. A thrown client error must not 500
-    // the preview build when public.bots is missing or the query dies.
-    return { data: [SEED_BOT], error: null };
+  } catch (error) {
+    if (isMissingRelationError(error, "bots")) {
+      return { data: [SEED_BOT], error: null };
+    }
+    throw error;
   }
 }
 
@@ -785,12 +776,7 @@ export async function getBotBySlug(slug: string): Promise<{
       return { data: await seedBotDetail(), error: null };
     }
 
-    if (!data) {
-      if (slug === SEED_BOT_SLUG) {
-        return { data: await seedBotDetail(), error: null };
-      }
-      return { data: null, error };
-    }
+    if (!data) return { data: null, error };
 
     const bot = asBotRow(data as Record<string, unknown>);
     return {
@@ -798,10 +784,11 @@ export async function getBotBySlug(slug: string): Promise<{
       error,
     };
   } catch (error) {
-    if (slug === SEED_BOT_SLUG) {
+    if (isMissingRelationError(error, "bots")) {
+      if (slug !== SEED_BOT_SLUG) return { data: null, error: null };
       return { data: await seedBotDetail(), error: null };
     }
-    return { data: null, error };
+    throw error;
   }
 }
 
@@ -836,7 +823,10 @@ export async function getPendingBots(): Promise<{
       data: result.data.map(asBotRow),
       error: null,
     };
-  } catch {
-    return { data: [], error: null };
+  } catch (error) {
+    if (isMissingRelationError(error, "bots")) {
+      return { data: [], error: null };
+    }
+    throw error;
   }
 }

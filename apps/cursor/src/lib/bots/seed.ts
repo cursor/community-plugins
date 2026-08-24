@@ -68,6 +68,6 @@ export function isMissingRelationError(
     code === "42P01" ||
     message.includes(`public.${relation}`) ||
     message.includes(`relation "${relation}"`) ||
-    message.includes("schema cache")
+    (message.includes("schema cache") && message.includes(relation))
   );
 }
