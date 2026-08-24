@@ -94,7 +94,29 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function parseNeeds(manifest: Record<string, unknown>): BotNeed[] {
+function parsePluginNeed(rec: Record<string, unknown>): BotNeed | null {
+  const name = typeof rec.name === "string" ? rec.name.trim() : "";
+  if (!name) return null;
+  const slug =
+    typeof rec.slug === "string" && rec.slug.trim()
+      ? rec.slug.trim()
+      : slugify(name);
+  const repository =
+    typeof rec.repository === "string" && rec.repository.trim()
+      ? rec.repository.trim()
+      : undefined;
+  const base = { kind: "plugin" as const, name, slug };
+  const withRepo = botNeedSchema.safeParse(
+    repository ? { ...base, repository } : base,
+  );
+  if (withRepo.success) return withRepo.data;
+  const withoutRepo = botNeedSchema.safeParse(base);
+  return withoutRepo.success ? withoutRepo.data : null;
+}
+
+export function parseBotManifestNeeds(
+  manifest: Record<string, unknown>,
+): BotNeed[] {
   const needs: BotNeed[] = [];
 
   const plugins = manifest.plugins;
@@ -107,19 +129,8 @@ function parseNeeds(manifest: Record<string, unknown>): BotNeed[] {
       }
       const rec = asRecord(entry);
       if (!rec) continue;
-      const name = typeof rec.name === "string" ? rec.name.trim() : "";
-      if (!name) continue;
-      const parsed = botNeedSchema.safeParse({
-        kind: "plugin",
-        name,
-        ...(typeof rec.slug === "string" && rec.slug.trim()
-          ? { slug: rec.slug.trim() }
-          : { slug: slugify(name) }),
-        ...(typeof rec.repository === "string" && rec.repository.trim()
-          ? { repository: rec.repository.trim() }
-          : {}),
-      });
-      if (parsed.success) needs.push(parsed.data);
+      const need = parsePluginNeed(rec);
+      if (need) needs.push(need);
     }
   }
 
@@ -172,6 +183,7 @@ export async function parseGitHubBot(
 
   let manifest: Record<string, unknown> = {};
   let foundManifest = false;
+  let lastInvalidJsonPath: string | null = null;
   for (const path of MANIFEST_PATHS) {
     const content = await fetchGitHubFile(owner, repo, path);
     if (!content) continue;
@@ -184,7 +196,7 @@ export async function parseGitHubBot(
         break;
       }
     } catch {
-      throw new BotParseError(`Could not parse ${path} as JSON.`, "no_bot");
+      lastInvalidJsonPath = path;
     }
   }
 
@@ -227,8 +239,11 @@ export async function parseGitHubBot(
         "open_plugin_agent",
       );
     }
+    const jsonHint = lastInvalidJsonPath
+      ? ` ${lastInvalidJsonPath} was not valid JSON.`
+      : "";
     throw new BotParseError(
-      "No bot listing found. Add bot.json (name, description, template, writeup, plugins, skills) or BOT.md plus a README/WRITEUP.md. Open Plugins `agents/*.md` files are plugins, not bots.",
+      `No bot listing found.${jsonHint} Add bot.json (name, description, template, writeup, plugins, skills) or BOT.md plus a README/WRITEUP.md. Open Plugins \`agents/*.md\` files are plugins, not bots.`,
       "no_bot",
     );
   }
@@ -245,7 +260,7 @@ export async function parseGitHubBot(
     description: description.slice(0, 280),
     writeup,
     template,
-    needs: parseNeeds(manifest),
+    needs: parseBotManifestNeeds(manifest),
     repository: `https://github.com/${owner}/${repo}`,
     homepage,
     github_repo_id: meta?.id,

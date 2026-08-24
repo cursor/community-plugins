@@ -88,6 +88,10 @@ end$$;
 
 alter table public.bots enable row level security;
 
+-- Active listings are world-readable; owners can read and delete their own
+-- rows. Inserts and updates go through the service-role admin client
+-- (createBotAction / reviewBotAction). Authenticated clients have no insert
+-- or update policy, so they cannot self-publish by writing active = true.
 do $$
 begin
   if not exists (
@@ -97,27 +101,6 @@ begin
   ) then
     create policy bots_select_active_or_own on public.bots
       for select using (active = true or (select auth.uid()) = owner_id);
-  end if;
-
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'bots'
-      and policyname = 'bots_insert_own'
-  ) then
-    create policy bots_insert_own on public.bots
-      for insert to authenticated
-      with check ((select auth.uid()) = owner_id);
-  end if;
-
-  if not exists (
-    select 1 from pg_policies
-    where schemaname = 'public' and tablename = 'bots'
-      and policyname = 'bots_update_own'
-  ) then
-    create policy bots_update_own on public.bots
-      for update to authenticated
-      using ((select auth.uid()) = owner_id)
-      with check ((select auth.uid()) = owner_id);
   end if;
 
   if not exists (
