@@ -109,16 +109,25 @@ function parseNeeds(manifest: Record<string, unknown>): BotNeed[] {
       if (!rec) continue;
       const name = typeof rec.name === "string" ? rec.name.trim() : "";
       if (!name) continue;
-      const parsed = botNeedSchema.safeParse({
-        kind: "plugin",
+      const base = {
+        kind: "plugin" as const,
         name,
         ...(typeof rec.slug === "string" && rec.slug.trim()
           ? { slug: rec.slug.trim() }
           : { slug: slugify(name) }),
-        ...(typeof rec.repository === "string" && rec.repository.trim()
-          ? { repository: rec.repository.trim() }
-          : {}),
-      });
+      };
+      const repository =
+        typeof rec.repository === "string" && rec.repository.trim()
+          ? rec.repository.trim()
+          : undefined;
+      // repository is optional link metadata: if its URL is invalid, keep
+      // the need and drop only that field instead of the whole entry.
+      const withRepository = repository
+        ? botNeedSchema.safeParse({ ...base, repository })
+        : undefined;
+      const parsed = withRepository?.success
+        ? withRepository
+        : botNeedSchema.safeParse(base);
       if (parsed.success) needs.push(parsed.data);
     }
   }
@@ -184,7 +193,7 @@ export async function parseGitHubBot(
         break;
       }
     } catch {
-      throw new BotParseError(`Could not parse ${path} as JSON.`, "no_bot");
+      // Invalid JSON at this path must not block the fallback paths.
     }
   }
 

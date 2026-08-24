@@ -103,6 +103,9 @@ begin
       for select using (active = true or (select auth.uid()) = owner_id);
   end if;
 
+  -- Publishing is admin-only (service role, /admin/bots). Owner-scoped
+  -- writes must not be able to set or keep active = true, or a signed-in
+  -- user could bypass the review queue via the user-scoped API key.
   if not exists (
     select 1 from pg_policies
     where schemaname = 'public' and tablename = 'bots'
@@ -110,7 +113,7 @@ begin
   ) then
     create policy bots_insert_own on public.bots
       for insert to authenticated
-      with check ((select auth.uid()) = owner_id);
+      with check ((select auth.uid()) = owner_id and active = false);
   end if;
 
   if not exists (
@@ -121,7 +124,7 @@ begin
     create policy bots_update_own on public.bots
       for update to authenticated
       using ((select auth.uid()) = owner_id)
-      with check ((select auth.uid()) = owner_id);
+      with check ((select auth.uid()) = owner_id and active = false);
   end if;
 
   if not exists (
