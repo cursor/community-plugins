@@ -29,6 +29,11 @@
 
 import { cacheLife, cacheTag } from "next/cache";
 import {
+  isMissingRelationError,
+  SEED_BOT,
+  SEED_BOT_SLUG,
+} from "@/lib/bots/seed";
+import {
   type BotDetail,
   type BotNeed,
   type BotRow,
@@ -714,6 +719,9 @@ export async function getBots({
       100,
     );
     if (result.error || !result.data) {
+      if (isMissingRelationError(result.error, "bots")) {
+        return { data: [SEED_BOT], error: null };
+      }
       return { data: null, error: result.error };
     }
     return {
@@ -723,6 +731,9 @@ export async function getBots({
   }
 
   const { data, error } = await baseQuery();
+  if (error && isMissingRelationError(error, "bots")) {
+    return { data: [SEED_BOT], error: null };
+  }
   return {
     data: (data ?? []).map((row) => asBotRow(row as Record<string, unknown>)),
     error,
@@ -743,6 +754,14 @@ export async function getBotBySlug(slug: string): Promise<{
     .select("*")
     .eq("slug", slug)
     .single();
+
+  if (error && isMissingRelationError(error, "bots")) {
+    if (slug !== SEED_BOT_SLUG) return { data: null, error: null };
+    return {
+      data: { ...SEED_BOT, needs: await resolveBotNeeds(SEED_BOT.needs) },
+      error: null,
+    };
+  }
 
   if (!data) return { data: null, error };
 
@@ -773,6 +792,9 @@ export async function getPendingBots(): Promise<{
   );
 
   if (result.error || !result.data) {
+    if (isMissingRelationError(result.error, "bots")) {
+      return { data: [], error: null };
+    }
     return { data: null, error: result.error };
   }
 

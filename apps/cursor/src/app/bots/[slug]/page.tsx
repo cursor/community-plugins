@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BotDetailView } from "@/components/bots/bot-detail";
 import { getBotBySlug, getBots } from "@/data/queries";
+import { SEED_BOT_SLUG } from "@/lib/bots/seed";
 
 type Params = Promise<{ slug: string }>;
 
@@ -36,7 +37,9 @@ export async function generateMetadata({
 
 export async function generateStaticParams() {
   const { data: bots } = await getBots({ fetchAll: true });
-  return (bots ?? []).map((bot) => ({ slug: bot.slug }));
+  const slugs = new Set((bots ?? []).map((bot) => bot.slug));
+  slugs.add(SEED_BOT_SLUG);
+  return [...slugs].map((slug) => ({ slug }));
 }
 
 export default async function Page({ params }: { params: Params }) {
