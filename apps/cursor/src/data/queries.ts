@@ -80,6 +80,16 @@ function asBotRow(row: Record<string, unknown>): BotRow {
   };
 }
 
+function unresolvedBotNeeds(needs: BotNeed[]): ResolvedBotNeed[] {
+  return needs.map((need) => {
+    if (need.kind === "skill") return need;
+    return {
+      ...need,
+      href: need.slug ? `/plugins/${need.slug}` : null,
+    };
+  });
+}
+
 async function resolveBotNeeds(needs: BotNeed[]): Promise<ResolvedBotNeed[]> {
   const slugs = needs.flatMap((n) =>
     n.kind === "plugin" && n.slug ? [n.slug] : [],
@@ -87,14 +97,18 @@ async function resolveBotNeeds(needs: BotNeed[]): Promise<ResolvedBotNeed[]> {
   const hrefBySlug = new Map<string, string>();
 
   if (slugs.length > 0) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("plugins")
-      .select("slug")
-      .eq("active", true)
-      .in("slug", slugs);
-    for (const plugin of data ?? []) {
-      hrefBySlug.set(plugin.slug, `/plugins/${plugin.slug}`);
+    try {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("plugins")
+        .select("slug")
+        .eq("active", true)
+        .in("slug", slugs);
+      for (const plugin of data ?? []) {
+        hrefBySlug.set(plugin.slug, `/plugins/${plugin.slug}`);
+      }
+    } catch {
+      return unresolvedBotNeeds(needs);
     }
   }
 
@@ -105,6 +119,10 @@ async function resolveBotNeeds(needs: BotNeed[]): Promise<ResolvedBotNeed[]> {
       href: need.slug ? (hrefBySlug.get(need.slug) ?? null) : null,
     };
   });
+}
+
+async function seedBotDetail(): Promise<BotDetail> {
+  return { ...SEED_BOT, needs: await resolveBotNeeds(SEED_BOT.needs) };
 }
 
 async function fetchUserProfile(slug: string, userId?: string) {
@@ -701,43 +719,49 @@ export async function getBots({
   cacheLife("hours");
   cacheTag("bots");
 
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const baseQuery = () =>
-    supabase
-      .from("bots")
-      .select("*")
-      .eq("active", true)
-      .order("created_at", { ascending: false });
+    const baseQuery = () =>
+      supabase
+        .from("bots")
+        .select("*")
+        .eq("active", true)
+        .order("created_at", { ascending: false });
 
-  if (fetchAll) {
-    const result = await fetchAllPages<Record<string, unknown>>(
-      async (from, to) => {
-        const { data, error } = await baseQuery().range(from, to);
-        return { data: data as Record<string, unknown>[] | null, error };
-      },
-      100,
-    );
-    if (result.error || !result.data) {
-      if (isMissingRelationError(result.error, "bots")) {
-        return { data: [SEED_BOT], error: null };
+    if (fetchAll) {
+      const result = await fetchAllPages<Record<string, unknown>>(
+        async (from, to) => {
+          const { data, error } = await baseQuery().range(from, to);
+          return { data: data as Record<string, unknown>[] | null, error };
+        },
+        100,
+      );
+      if (result.error || !result.data) {
+        if (isMissingRelationError(result.error, "bots")) {
+          return { data: [SEED_BOT], error: null };
+        }
+        return { data: null, error: result.error };
       }
-      return { data: null, error: result.error };
+      return {
+        data: result.data.map(asBotRow),
+        error: null,
+      };
+    }
+
+    const { data, error } = await baseQuery();
+    if (error && isMissingRelationError(error, "bots")) {
+      return { data: [SEED_BOT], error: null };
     }
     return {
-      data: result.data.map(asBotRow),
-      error: null,
+      data: (data ?? []).map((row) => asBotRow(row as Record<string, unknown>)),
+      error,
     };
-  }
-
-  const { data, error } = await baseQuery();
-  if (error && isMissingRelationError(error, "bots")) {
+  } catch {
+    // Cache Components prerenders /bots. A thrown client error must not 500
+    // the preview build when public.bots is missing or the query dies.
     return { data: [SEED_BOT], error: null };
   }
-  return {
-    data: (data ?? []).map((row) => asBotRow(row as Record<string, unknown>)),
-    error,
-  };
 }
 
 export async function getBotBySlug(slug: string): Promise<{
@@ -748,58 +772,71 @@ export async function getBotBySlug(slug: string): Promise<{
   cacheLife("hours");
   cacheTag("bots", `bot-${slug}`, "plugins");
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("bots")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("bots")
+      .select("*")
+      .eq("slug", slug)
+      .single();
 
-  if (error && isMissingRelationError(error, "bots")) {
-    if (slug !== SEED_BOT_SLUG) return { data: null, error: null };
+    if (error && isMissingRelationError(error, "bots")) {
+      if (slug !== SEED_BOT_SLUG) return { data: null, error: null };
+      return { data: await seedBotDetail(), error: null };
+    }
+
+    if (!data) {
+      if (slug === SEED_BOT_SLUG) {
+        return { data: await seedBotDetail(), error: null };
+      }
+      return { data: null, error };
+    }
+
+    const bot = asBotRow(data as Record<string, unknown>);
     return {
-      data: { ...SEED_BOT, needs: await resolveBotNeeds(SEED_BOT.needs) },
-      error: null,
+      data: { ...bot, needs: await resolveBotNeeds(bot.needs) },
+      error,
     };
+  } catch (error) {
+    if (slug === SEED_BOT_SLUG) {
+      return { data: await seedBotDetail(), error: null };
+    }
+    return { data: null, error };
   }
-
-  if (!data) return { data: null, error };
-
-  const bot = asBotRow(data as Record<string, unknown>);
-  return {
-    data: { ...bot, needs: await resolveBotNeeds(bot.needs) },
-    error,
-  };
 }
 
 export async function getPendingBots(): Promise<{
   data: BotRow[] | null;
   error: unknown;
 }> {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const result = await fetchAllPages<Record<string, unknown>>(
-    async (from, to) => {
-      const { data, error } = await supabase
-        .from("bots")
-        .select("*")
-        .eq("active", false)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      return { data: data as Record<string, unknown>[] | null, error };
-    },
-    100,
-  );
+    const result = await fetchAllPages<Record<string, unknown>>(
+      async (from, to) => {
+        const { data, error } = await supabase
+          .from("bots")
+          .select("*")
+          .eq("active", false)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        return { data: data as Record<string, unknown>[] | null, error };
+      },
+      100,
+    );
 
-  if (result.error || !result.data) {
-    if (isMissingRelationError(result.error, "bots")) {
-      return { data: [], error: null };
+    if (result.error || !result.data) {
+      if (isMissingRelationError(result.error, "bots")) {
+        return { data: [], error: null };
+      }
+      return { data: null, error: result.error };
     }
-    return { data: null, error: result.error };
-  }
 
-  return {
-    data: result.data.map(asBotRow),
-    error: null,
-  };
+    return {
+      data: result.data.map(asBotRow),
+      error: null,
+    };
+  } catch {
+    return { data: [], error: null };
+  }
 }

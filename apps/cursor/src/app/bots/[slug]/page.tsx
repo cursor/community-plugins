@@ -36,10 +36,14 @@ export async function generateMetadata({
 }
 
 export async function generateStaticParams() {
-  const { data: bots } = await getBots({ fetchAll: true });
-  const slugs = new Set((bots ?? []).map((bot) => bot.slug));
-  slugs.add(SEED_BOT_SLUG);
-  return [...slugs].map((slug) => ({ slug }));
+  try {
+    const { data: bots } = await getBots({ fetchAll: true });
+    const slugs = new Set((bots ?? []).map((bot) => bot.slug));
+    slugs.add(SEED_BOT_SLUG);
+    return [...slugs].map((slug) => ({ slug }));
+  } catch {
+    return [{ slug: SEED_BOT_SLUG }];
+  }
 }
 
 export default async function Page({ params }: { params: Params }) {

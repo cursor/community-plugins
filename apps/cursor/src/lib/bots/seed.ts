@@ -67,6 +67,7 @@ export function isMissingRelationError(
     code === "PGRST205" ||
     code === "42P01" ||
     message.includes(`public.${relation}`) ||
-    message.includes(`relation "${relation}"`)
+    message.includes(`relation "${relation}"`) ||
+    message.includes("schema cache")
   );
 }
