@@ -10,6 +10,7 @@ const columns = [
     title: "Explore",
     links: [
       { href: "/", label: "Plugins" },
+      { href: "/bots", label: "Bots" },
       { href: "/plugins/new", label: "Submit a Plugin" },
     ],
   },
@@ -49,6 +50,7 @@ const columns = [
     title: "Contribute",
     links: [
       { href: "/plugins/new", label: "Submit a Plugin" },
+      { href: "/bots/new", label: "Submit a Bot" },
       {
         href: "https://github.com/cursor/community-plugins",
         label: "GitHub",

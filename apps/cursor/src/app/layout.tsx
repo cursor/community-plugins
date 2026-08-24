@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s | Cursor Directory",
   },
   description:
-    "Discover plugins, MCP servers, rules, and resources for Cursor — the AI code editor. Join thousands of developers.",
+    "Discover plugins, bots, MCP servers, rules, and resources for Cursor. Join thousands of developers.",
   icons: [
     {
       rel: "icon",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Cursor Directory",
     description:
-      "Discover plugins, MCP servers, rules, and resources for Cursor — the AI code editor.",
+      "Discover plugins, bots, MCP servers, rules, and resources for Cursor.",
     url: "https://cursor.directory",
     siteName: "Cursor Directory",
     locale: "en_US",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Cursor Directory",
     description:
-      "Discover plugins, MCP servers, rules, and resources for Cursor — the AI code editor.",
+      "Discover plugins, bots, MCP servers, rules, and resources for Cursor.",
   },
 };
 

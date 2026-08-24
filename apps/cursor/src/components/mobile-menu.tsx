@@ -118,6 +118,14 @@ export function MobileMenu() {
                   Submit a plugin
                 </Button>
               </Link>
+              <Link href="/bots/new" onClick={() => setIsOpen(false)}>
+                <Button
+                  variant="outline"
+                  className="mt-3 h-9 w-full rounded-full"
+                >
+                  Submit a bot
+                </Button>
+              </Link>
 
               <div className="mt-12">
                 {user ? (
