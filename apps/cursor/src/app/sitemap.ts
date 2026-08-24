@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 import { cacheLife, cacheTag } from "next/cache";
-import { getCompanies, getPlugins } from "@/data/queries";
+import { getBots, getCompanies, getPlugins } from "@/data/queries";
 
 const BASE_URL = "https://cursor.directory";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   "use cache";
   cacheLife("hours");
-  cacheTag("plugins", "companies");
+  cacheTag("plugins", "companies", "bots");
 
   const routes: MetadataRoute.Sitemap = [
     {
@@ -18,6 +18,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${BASE_URL}/learn`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/bots`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
@@ -48,6 +54,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       routes.push({
         url: `${BASE_URL}/plugins/${plugin.slug}`,
         lastModified: new Date(plugin.updated_at),
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
+    }
+  }
+
+  const { data: bots } = await getBots({ fetchAll: true });
+  if (bots) {
+    for (const bot of bots) {
+      routes.push({
+        url: `${BASE_URL}/bots/${bot.slug}`,
+        lastModified: new Date(bot.updated_at),
         changeFrequency: "weekly",
         priority: 0.7,
       });
