@@ -81,12 +81,11 @@ function asBotRow(row: Record<string, unknown>): BotRow {
 }
 
 function unresolvedBotNeeds(needs: BotNeed[]): ResolvedBotNeed[] {
+  // Existence is unknown, so link nothing rather than point at plugin pages
+  // that may be missing or inactive.
   return needs.map((need) => {
     if (need.kind === "skill") return need;
-    return {
-      ...need,
-      href: need.slug ? `/plugins/${need.slug}` : null,
-    };
+    return { ...need, href: null };
   });
 }
 
@@ -757,10 +756,14 @@ export async function getBots({
       data: (data ?? []).map((row) => asBotRow(row as Record<string, unknown>)),
       error,
     };
-  } catch {
+  } catch (error) {
     // Cache Components prerenders /bots. A thrown client error must not 500
-    // the preview build when public.bots is missing or the query dies.
-    return { data: [SEED_BOT], error: null };
+    // the preview build when public.bots is missing. Other throws surface as
+    // errors so an outage is never cached as a healthy seed-only catalog.
+    if (isMissingRelationError(error, "bots")) {
+      return { data: [SEED_BOT], error: null };
+    }
+    return { data: null, error };
   }
 }
 
@@ -786,9 +789,8 @@ export async function getBotBySlug(slug: string): Promise<{
     }
 
     if (!data) {
-      if (slug === SEED_BOT_SLUG) {
-        return { data: await seedBotDetail(), error: null };
-      }
+      // The table exists but the row does not: not found, even for the seed
+      // slug, so the detail page never disagrees with the list.
       return { data: null, error };
     }
 
