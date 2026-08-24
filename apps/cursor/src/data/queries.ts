@@ -687,10 +687,6 @@ export async function getMembers({
   return { data, error };
 }
 
-// ---------------------------------------------------------------------------
-// Bots (use-case listings)
-// ---------------------------------------------------------------------------
-
 export async function getBots({
   fetchAll = true,
 }: {

@@ -1,7 +1,3 @@
--- First-class bot listings (use-case pages), sibling to plugins / mcps.
--- A bot is a copyable template + the plugins/skills it needs + a writeup.
--- It is not an Open Plugins `agents/*.md` component.
-
 create table if not exists public.bots (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,

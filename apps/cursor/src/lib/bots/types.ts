@@ -1,9 +1,3 @@
-/**
- * Bot listing domain types. A bot is a use-case page: copyable template,
- * plugins/skills it needs, SEO writeup. Not a plugin category and not an
- * Open Plugins `agents/*.md` component.
- */
-
 import { z } from "zod";
 import type { ScanStatus } from "@/lib/plugins/types";
 
