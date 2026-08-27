@@ -12,6 +12,7 @@ import { buildMCPInstallDeepLink } from "./deeplinks";
 function resolveMcpConfig(
   content: string | null,
   meta: Record<string, unknown>,
+  fallbackName: string,
 ): { name: string; config: Record<string, unknown> } | null {
   // Try content first, then metadata.config
   let parsed: Record<string, unknown> | null = null;
@@ -43,8 +44,13 @@ function resolveMcpConfig(
     }
   }
 
-  // Content is already a raw config (no mcpServers wrapper)
-  return { name: (meta?.name as string) ?? "server", config: parsed };
+  // Content is already a raw config (no mcpServers wrapper). Ingestion strips
+  // the wrapper, so fall back to the component name before the generic default
+  // -- otherwise every such server installs as literally "server".
+  return {
+    name: (meta?.name as string) ?? fallbackName ?? "server",
+    config: parsed,
+  };
 }
 
 export function McpSection({
@@ -70,10 +76,15 @@ export function McpSection({
         let installLink = mcpLink ?? null;
         let configPreview: string | null = null;
         try {
-          const resolved = resolveMcpConfig(mcp.content, meta);
+          const resolved = resolveMcpConfig(mcp.content, meta, mcp.name);
           if (resolved) {
-            const serialized = JSON.stringify(resolved.config, null, 2);
-            configPreview = serialized;
+            // Show the wrapped form: this is what a user pastes into
+            // ~/.cursor/mcp.json. The bare inner object is not valid there.
+            configPreview = JSON.stringify(
+              { mcpServers: { [resolved.name]: resolved.config } },
+              null,
+              2,
+            );
             if (!installLink) {
               installLink = buildMCPInstallDeepLink(
                 resolved.name,
@@ -133,8 +144,11 @@ export function McpSection({
                     mcp_link={installLink}
                     onInstall={onInstall}
                   />
-                ) : installable && mcp.content ? (
-                  <CopyButton text={mcp.content} onCopy={onInstall} />
+                ) : installable && (configPreview ?? mcp.content) ? (
+                  <CopyButton
+                    text={configPreview ?? mcp.content ?? ""}
+                    onCopy={onInstall}
+                  />
                 ) : null}
               </div>
             </div>
@@ -142,8 +156,9 @@ export function McpSection({
             {isExpanded && configPreview && (
               <div className="px-4 pb-4">
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground/80">
-                  This config will be passed to Cursor on install. Inspect
-                  `command`, `args`, and `env` before continuing.
+                  This config will be passed to Cursor on install, and is
+                  what you paste into `~/.cursor/mcp.json` to add the server by
+                  hand. Inspect `command`, `args`, and `env` before continuing.
                 </p>
                 <div className="max-h-96 overflow-y-auto rounded-lg border border-border bg-editor p-4 font-mono text-xs leading-6 text-muted-foreground">
                   <code className="block whitespace-pre-wrap">
