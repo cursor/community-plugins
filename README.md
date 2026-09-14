@@ -93,6 +93,27 @@ Auto-detected components:
 
 See the [Open Plugins specification](https://open-plugins.com/plugin-builders/specification) and [plugin template](https://github.com/cursor/plugin-template) for details.
 
+### Submit a Bot
+
+A bot listing is a use-case page, not a plugin. It is a copyable template, the plugins and skills that template needs, and a writeup that can rank in search. It is not an Open Plugins `agents/*.md` file. Submit those as plugins.
+
+1. Go to [cursor.directory/bots/new](https://cursor.directory/bots/new)
+2. Sign in with GitHub or Google
+3. Paste a GitHub repo URL, or fill in the template and writeup by hand
+4. Click **Submit**
+
+The listing stays unpublished until an admin reviews it at `/admin/bots`. Security scan is not wired for bots yet. Plugin submit, scan, and trending are unchanged.
+
+Auto-detected bot files:
+
+| File | What we read |
+|------|----------------|
+| `bot.json` or `.cursor/bot.json` | `name`, `description`, `template`, `writeup`, `plugins`, `skills` |
+| `BOT.md` or `template.md` | Copyable template if JSON omits `template` |
+| `WRITEUP.md` or `README.md` | Use-case writeup if JSON omits `writeup` |
+
+If the repo only contains `agents/*.md` (and no bot manifest), the submit form tells you to use [plugin submit](https://cursor.directory/plugins/new) instead. `parseGitHubPlugin` cannot serve this flow: it requires Open Plugins components and treats `agents/*.md` as plugin body, so a bot-only repo fails with `no_components`.
+
 ---
 
 ## Tech Stack

@@ -16,6 +16,11 @@ export const navigationLinks = [
     match: (p: string) => p === "/" || p.startsWith("/plugins"),
   },
   {
+    href: "/bots",
+    label: "Bots",
+    match: (p: string) => p === "/bots" || p.startsWith("/bots/"),
+  },
+  {
     href: "/members",
     label: "Members",
     match: (p: string) => p === "/members" || p.startsWith("/members/"),
