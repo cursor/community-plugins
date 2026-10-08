@@ -33,14 +33,24 @@ export const deletePluginAction = authActionClient
       );
     }
 
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from("plugins")
       .delete()
       .eq("id", id)
-      .eq("owner_id", userId);
+      .eq("owner_id", userId)
+      .select("id");
 
     if (error) {
       throw new ActionError(`Failed to delete plugin: ${error.message}`);
+    }
+
+    // A delete that matches no rows is not an error for PostgREST, so without
+    // this check a row the policy refuses to delete would still produce the
+    // "Plugin deleted." toast while staying live and keeping its slug.
+    if (!deleted || deleted.length === 0) {
+      throw new ActionError(
+        "The plugin could not be deleted. It is still listed; contact support to have it removed.",
+      );
     }
 
     // Deletions must disappear from cached lists immediately for the owner.
