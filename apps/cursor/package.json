@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "seed:extract": "bun run --env-file=.env src/scripts/extract-from-github.ts",
     "seed:insert": "bun run --env-file=.env src/scripts/insert-from-jsonl.ts"
