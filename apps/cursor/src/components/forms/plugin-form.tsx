@@ -386,7 +386,7 @@ export function PluginForm() {
                 We&apos;ll scan for rules, MCP servers, skills, agents, and more
                 following the{" "}
                 <a
-                  href="https://open-plugins.com"
+                  href="https://agent-plugins.org"
                   target="_blank"
                   rel="noreferrer"
                   className="border-b border-border border-dashed hover:text-foreground transition-colors"

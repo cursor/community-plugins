@@ -46,7 +46,7 @@ export default function Page() {
             <br />
             We follow the{" "}
             <a
-              href="https://open-plugins.com"
+              href="https://agent-plugins.org"
               target="_blank"
               rel="noreferrer"
               className="text-foreground border-b border-border border-dashed"
