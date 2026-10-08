@@ -578,7 +578,7 @@ export async function parseGitHubPlugin(
     throw new GitHubParseError(
       `No plugin components found in: ${scannedPrefixes}. ` +
         `We looked for: ${hints.join(", ")}. ` +
-        `Make sure your repo follows the Open Plugins standard (https://open-plugins.com).`,
+        `Make sure your repo follows the Open Plugins standard (https://agent-plugins.org).`,
       "no_components",
     );
   }
