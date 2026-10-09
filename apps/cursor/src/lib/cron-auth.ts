@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 /**
@@ -24,8 +25,14 @@ export function requireCronAuth(request: Request): NextResponse | null {
     );
   }
 
-  const header = request.headers.get("authorization");
-  if (header !== `Bearer ${cronSecret}`) {
+  const header = request.headers.get("authorization") ?? "";
+  const expected = Buffer.from(`Bearer ${cronSecret}`);
+  const received = Buffer.from(header);
+  // Constant-time compare so the response time does not leak how much of
+  // the secret matched. Lengths must match first or timingSafeEqual throws.
+  const authorized =
+    received.length === expected.length && timingSafeEqual(received, expected);
+  if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
