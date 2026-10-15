@@ -12,7 +12,7 @@ import { buildMCPInstallDeepLink } from "./deeplinks";
 function resolveMcpConfig(
   content: string | null,
   meta: Record<string, unknown>,
-): { name: string; config: Record<string, unknown> } | null {
+): { config: Record<string, unknown> } | null {
   // Try content first, then metadata.config
   let parsed: Record<string, unknown> | null = null;
 
@@ -37,14 +37,13 @@ function resolveMcpConfig(
     const keys = Object.keys(servers);
     if (keys.length > 0) {
       return {
-        name: keys[0],
         config: servers[keys[0]] as Record<string, unknown>,
       };
     }
   }
 
   // Content is already a raw config (no mcpServers wrapper)
-  return { name: (meta?.name as string) ?? "server", config: parsed };
+  return { config: parsed };
 }
 
 export function McpSection({
@@ -75,8 +74,9 @@ export function McpSection({
             const serialized = JSON.stringify(resolved.config, null, 2);
             configPreview = serialized;
             if (!installLink) {
+              const installName = mcp.name.trim() || "server";
               installLink = buildMCPInstallDeepLink(
-                resolved.name,
+                installName,
                 JSON.stringify(resolved.config),
               );
             }
