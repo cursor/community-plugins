@@ -156,9 +156,9 @@ export function McpSection({
             {isExpanded && configPreview && (
               <div className="px-4 pb-4">
                 <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground/80">
-                  This config will be passed to Cursor on install, and is
-                  what you paste into `~/.cursor/mcp.json` to add the server by
-                  hand. Inspect `command`, `args`, and `env` before continuing.
+                  This config will be passed to Cursor on install, and is what
+                  you paste into `~/.cursor/mcp.json` to add the server by hand.
+                  Inspect `command`, `args`, and `env` before continuing.
                 </p>
                 <div className="max-h-96 overflow-y-auto rounded-lg border border-border bg-editor p-4 font-mono text-xs leading-6 text-muted-foreground">
                   <code className="block whitespace-pre-wrap">
