@@ -133,6 +133,24 @@ export function githubAuthHeaders(): Record<string, string> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Normalize a sub-plugin dir to `a/b/` form: no leading `./` or `/`, exactly
+ * one trailing `/`. Marketplace manifests commonly write `./plugins/foo`.
+ */
+function normalizeSubPluginDir(source: string): string {
+  const trimmed = source.replace(/^(?:\.\/)+/, "").replace(/^\/+|\/+$/g, "");
+  return trimmed ? `${trimmed}/` : "";
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Match tree paths under `prefix` (a literal dir) followed by `pattern` (a regex). */
+function pathUnder(prefix: string, pattern: string): RegExp {
+  return new RegExp(`^${escapeRegExp(prefix)}${pattern}`);
+}
+
+/**
  * Fetch with bounded retry on GitHub rate-limit (429 / 403 + retry-after).
  *
  * `maxWaitMs` caps the total time we'll spend sleeping across retries so this
@@ -344,7 +362,8 @@ export async function parseGitHubPlugin(
       if (entry && typeof entry === "object") {
         const source = (entry as Record<string, unknown>).source;
         if (typeof source === "string" && source && !source.includes("..")) {
-          subPluginDirs.add(`${source.replace(/^\/+|\/+$/g, "")}/`);
+          const dir = normalizeSubPluginDir(source);
+          if (dir) subPluginDirs.add(dir);
         }
       }
     }
@@ -389,7 +408,7 @@ export async function parseGitHubPlugin(
     const ruleFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}rules/.*\\.mdc$`).test(f.path),
+        pathUnder(prefix, "rules/.*\\.mdc$").test(f.path),
     );
     for (const rf of ruleFiles) {
       const raw = await fetchGitHubFile(owner, repo, rf.path);
@@ -452,7 +471,7 @@ export async function parseGitHubPlugin(
     const agentFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}agents/.*\\.md$`).test(f.path),
+        pathUnder(prefix, "agents/.*\\.md$").test(f.path),
     );
     for (const af of agentFiles) {
       const raw = await fetchGitHubFile(owner, repo, af.path);
@@ -473,7 +492,7 @@ export async function parseGitHubPlugin(
     const skillFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}skills/[^/]+/SKILL\\.md$`).test(f.path),
+        pathUnder(prefix, "skills/[^/]+/SKILL\\.md$").test(f.path),
     );
     for (const sf of skillFiles) {
       const raw = await fetchGitHubFile(owner, repo, sf.path);
@@ -495,7 +514,7 @@ export async function parseGitHubPlugin(
     const commandFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}commands/.*\\.md$`).test(f.path),
+        pathUnder(prefix, "commands/.*\\.md$").test(f.path),
     );
     for (const cf of commandFiles) {
       const raw = await fetchGitHubFile(owner, repo, cf.path);
