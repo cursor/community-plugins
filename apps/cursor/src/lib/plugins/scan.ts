@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
 import { Agent, CursorAgentError, type RunResult } from "@cursor/sdk";
 import { x as extractTar } from "tar";
 import { z } from "zod";
@@ -296,7 +297,13 @@ async function applyBlockedShortCircuit(pluginId: string) {
 // Cap how much of the repo archive we materialize on the function's tmpfs.
 // Plugins are typically rules/.md/.json — kilobytes — but we share /tmp with
 // other step executions and have a hard ~500MB limit on Vercel.
+//
+// Both the compressed download and what it unpacks to are capped. gzip turns
+// a few hundred KB of zeros into hundreds of MB, so bounding the download
+// alone leaves the tar on disk, and the extracted tree, unbounded. The tar is
+// the larger of the two, so the peak is at most the sum of these caps.
 const REPO_ARCHIVE_MAX_BYTES = 100 * 1024 * 1024;
+const REPO_UNPACKED_MAX_BYTES = 100 * 1024 * 1024;
 
 // The Vercel function sandbox only guarantees a writable /tmp; os.homedir()
 // points at a path that may not exist or be read-only (`/home/sbx_user...`).
@@ -331,23 +338,29 @@ async function redirectSdkStateToTmp(): Promise<string> {
   return stateRoot;
 }
 
-function archiveSizeGuard(tag: string) {
-  let downloaded = 0;
+/**
+ * Pass-through that fails the pipeline with `UnscannableRepoError` once more
+ * than `limit` bytes have gone through it, so the download or the
+ * decompression stops there instead of filling tmpfs.
+ */
+function byteBudget(
+  tag: string,
+  label: string,
+  limit: number,
+  exceeded: (limit: number) => string,
+) {
+  let seen = 0;
   return new Transform({
     transform(chunk: Buffer, _encoding, callback) {
-      downloaded += chunk.length;
-      if (downloaded > REPO_ARCHIVE_MAX_BYTES) {
-        callback(
-          new UnscannableRepoError(
-            `Repository archive exceeded the ${REPO_ARCHIVE_MAX_BYTES}-byte scan limit.`,
-          ),
-        );
+      seen += chunk.length;
+      if (seen > limit) {
+        callback(new UnscannableRepoError(exceeded(limit)));
         return;
       }
       callback(null, chunk);
     },
     final(callback) {
-      logInfo(tag, "GitHub archive download complete", { downloaded });
+      logInfo(tag, `GitHub archive ${label} complete`, { bytes: seen });
       callback();
     },
   });
@@ -360,7 +373,9 @@ async function cloneRepo(
 ): Promise<{ cwd: string; cleanup: () => Promise<void> }> {
   const root = await mkdtemp(path.join(tmpdir(), "plugin-scan-"));
   const cwd = path.join(root, "repo");
-  const archivePath = path.join(root, "repo.tar.gz");
+  // Stored already decompressed, so the file on disk is bounded by
+  // REPO_UNPACKED_MAX_BYTES and extraction cannot grow beyond it.
+  const archivePath = path.join(root, "repo.tar");
   const cleanup = () =>
     rm(root, { recursive: true, force: true }).catch(() => {});
   const startedAt = Date.now();
@@ -403,7 +418,22 @@ async function cloneRepo(
 
     await pipeline(
       Readable.fromWeb(response.body as never),
-      archiveSizeGuard(tag),
+      byteBudget(
+        tag,
+        "download",
+        REPO_ARCHIVE_MAX_BYTES,
+        (limit) => `Repository archive exceeded the ${limit}-byte scan limit.`,
+      ),
+      // GitHub tarballs are gzip. Decompressing here, under a second budget,
+      // stops a small archive that unpacks to gigabytes before it reaches disk.
+      createGunzip(),
+      byteBudget(
+        tag,
+        "decompression",
+        REPO_UNPACKED_MAX_BYTES,
+        (limit) =>
+          `Repository archive unpacks to more than the ${limit}-byte scan limit.`,
+      ),
       createWriteStream(archivePath),
     );
 
