@@ -187,12 +187,25 @@ export async function fetchWithRateLimit(
  */
 export type FetchOptions = { maxWaitMs?: number };
 
+/**
+ * Raw-content URL for a repo path. Tree paths arrive unencoded, so a `#`
+ * would start a URL fragment, a `?` a query, and a `%` a broken escape; each
+ * segment is encoded while the `/` between them is kept.
+ */
+function rawGitHubUrl(owner: string, repo: string, path: string): string {
+  const encodedPath = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${encodedPath}`;
+}
+
 async function fetchGitHubFile(
   owner: string,
   repo: string,
   path: string,
 ): Promise<string | null> {
-  const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+  const url = rawGitHubUrl(owner, repo, path);
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
@@ -593,7 +606,7 @@ export async function parseGitHubPlugin(
         logo = manifest.logo;
       }
     } catch {
-      logo = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${manifest.logo.replace(/^\.?\//, "")}`;
+      logo = rawGitHubUrl(owner, repo, manifest.logo.replace(/^\.?\//, ""));
     }
   }
 
