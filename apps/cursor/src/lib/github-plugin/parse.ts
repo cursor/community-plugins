@@ -133,6 +133,24 @@ export function githubAuthHeaders(): Record<string, string> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Normalize a sub-plugin dir to `a/b/` form: no leading `./` or `/`, exactly
+ * one trailing `/`. Marketplace manifests commonly write `./plugins/foo`.
+ */
+function normalizeSubPluginDir(source: string): string {
+  const trimmed = source.replace(/^(?:\.\/)+/, "").replace(/^\/+|\/+$/g, "");
+  return trimmed ? `${trimmed}/` : "";
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Match tree paths under `prefix` (a literal dir) followed by `pattern` (a regex). */
+function pathUnder(prefix: string, pattern: string): RegExp {
+  return new RegExp(`^${escapeRegExp(prefix)}${pattern}`);
+}
+
+/**
  * Fetch with bounded retry on GitHub rate-limit (429 / 403 + retry-after).
  *
  * `maxWaitMs` caps the total time we'll spend sleeping across retries so this
@@ -154,19 +172,34 @@ export async function fetchWithRateLimit(
 
     if (res.status !== 429 && res.status !== 403) return res;
 
-    // Distinguish "rate-limited" 403 from "forbidden" 403 by checking the
-    // X-RateLimit-Remaining header. A real auth/permission 403 has remaining > 0.
+    const retryAfterHeader = res.headers.get("retry-after");
+    const retryAfter = Number(retryAfterHeader ?? "");
     const remaining = Number(res.headers.get("x-ratelimit-remaining") ?? "");
-    if (res.status === 403 && Number.isFinite(remaining) && remaining > 0) {
+
+    // Distinguish "rate-limited" 403 from "forbidden" 403. A primary-limit 403
+    // has remaining === 0; a secondary-limit 403 (too many concurrent requests,
+    // too many points per minute) carries a retry-after header while remaining
+    // can still be > 0. Only a 403 with budget left and no retry-after is a real
+    // auth/permission answer.
+    if (
+      res.status === 403 &&
+      retryAfterHeader === null &&
+      Number.isFinite(remaining) &&
+      remaining > 0
+    ) {
       return res;
     }
 
-    const retryAfter = Number(res.headers.get("retry-after") ?? "");
     const reset = Number(res.headers.get("x-ratelimit-reset") ?? "0") * 1000;
+    // GitHub's documented order: honour retry-after; else, if remaining is 0,
+    // wait for the reset; else (secondary limit without a retry-after) wait a
+    // minute before retrying.
     let waitMs =
       Number.isFinite(retryAfter) && retryAfter > 0
         ? retryAfter * 1000
-        : Math.max(reset - Date.now(), 1000);
+        : remaining === 0
+          ? Math.max(reset - Date.now(), 1000)
+          : 60_000;
     waitMs = Math.min(waitMs, maxWaitMs - totalWait);
 
     if (waitMs <= 0 || attempt === maxAttempts) return res;
@@ -187,12 +220,25 @@ export async function fetchWithRateLimit(
  */
 export type FetchOptions = { maxWaitMs?: number };
 
+/**
+ * Raw-content URL for a repo path. Tree paths arrive unencoded, so a `#`
+ * would start a URL fragment, a `?` a query, and a `%` a broken escape; each
+ * segment is encoded while the `/` between them is kept.
+ */
+function rawGitHubUrl(owner: string, repo: string, path: string): string {
+  const encodedPath = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${encodedPath}`;
+}
+
 async function fetchGitHubFile(
   owner: string,
   repo: string,
   path: string,
 ): Promise<string | null> {
-  const url = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
+  const url = rawGitHubUrl(owner, repo, path);
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
@@ -344,7 +390,8 @@ export async function parseGitHubPlugin(
       if (entry && typeof entry === "object") {
         const source = (entry as Record<string, unknown>).source;
         if (typeof source === "string" && source && !source.includes("..")) {
-          subPluginDirs.add(`${source.replace(/^\/+|\/+$/g, "")}/`);
+          const dir = normalizeSubPluginDir(source);
+          if (dir) subPluginDirs.add(dir);
         }
       }
     }
@@ -382,14 +429,17 @@ export async function parseGitHubPlugin(
   }
 
   const components: ParsedComponent[] = [];
+  // Which sub-plugin dir each component came from ("" for the repo root), so
+  // a slug that collides across sub-plugins can be told apart below.
+  const prefixOf = new Map<ParsedComponent, string>();
 
   const prefixes = ["", ...subPluginDirs];
 
   for (const prefix of prefixes) {
+    const firstIndex = components.length;
     const ruleFiles = tree.filter(
       (f) =>
-        f.type === "blob" &&
-        new RegExp(`^${prefix}rules/.*\\.mdc$`).test(f.path),
+        f.type === "blob" && pathUnder(prefix, "rules/.*\\.mdc$").test(f.path),
     );
     for (const rf of ruleFiles) {
       const raw = await fetchGitHubFile(owner, repo, rf.path);
@@ -451,8 +501,7 @@ export async function parseGitHubPlugin(
 
     const agentFiles = tree.filter(
       (f) =>
-        f.type === "blob" &&
-        new RegExp(`^${prefix}agents/.*\\.md$`).test(f.path),
+        f.type === "blob" && pathUnder(prefix, "agents/.*\\.md$").test(f.path),
     );
     for (const af of agentFiles) {
       const raw = await fetchGitHubFile(owner, repo, af.path);
@@ -473,7 +522,7 @@ export async function parseGitHubPlugin(
     const skillFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}skills/[^/]+/SKILL\\.md$`).test(f.path),
+        pathUnder(prefix, "skills/[^/]+/SKILL\\.md$").test(f.path),
     );
     for (const sf of skillFiles) {
       const raw = await fetchGitHubFile(owner, repo, sf.path);
@@ -495,7 +544,7 @@ export async function parseGitHubPlugin(
     const commandFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
-        new RegExp(`^${prefix}commands/.*\\.md$`).test(f.path),
+        pathUnder(prefix, "commands/.*\\.md$").test(f.path),
     );
     for (const cf of commandFiles) {
       const raw = await fetchGitHubFile(owner, repo, cf.path);
@@ -552,15 +601,28 @@ export async function parseGitHubPlugin(
         // ignore
       }
     }
+
+    for (const c of components.slice(firstIndex)) prefixOf.set(c, prefix);
   }
 
+  // Slugs come from file or directory names, so two sub-plugins that both
+  // ship, say, `skills/setup/SKILL.md` produce the same `skill:setup` key. The
+  // first occurrence keeps its slug; a later one from a sub-plugin dir gets
+  // the dir as a prefix (the hooks component already does this). Only a key
+  // that still collides after that is dropped.
   const seen = new Set<string>();
-  const deduped = components.filter((c) => {
-    const key = `${c.type}:${c.slug}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const deduped: ParsedComponent[] = [];
+  for (const c of components) {
+    let slug = c.slug;
+    if (seen.has(`${c.type}:${slug}`)) {
+      const prefix = prefixOf.get(c) ?? "";
+      if (!prefix) continue;
+      slug = slugify(`${prefix} ${c.slug}`);
+      if (seen.has(`${c.type}:${slug}`)) continue;
+    }
+    seen.add(`${c.type}:${slug}`);
+    deduped.push(slug === c.slug ? c : { ...c, slug });
+  }
 
   if (deduped.length === 0) {
     const scannedPrefixes = prefixes
@@ -593,7 +655,7 @@ export async function parseGitHubPlugin(
         logo = manifest.logo;
       }
     } catch {
-      logo = `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${manifest.logo.replace(/^\.?\//, "")}`;
+      logo = rawGitHubUrl(owner, repo, manifest.logo.replace(/^\.?\//, ""));
     }
   }
 
