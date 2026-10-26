@@ -61,7 +61,7 @@ function StuckCard({ plugin }: { plugin: PluginRow }) {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="text-text-tertiary">
-              created {new Date(plugin.created_at).toLocaleString()}
+              last change {new Date(plugin.updated_at).toLocaleString()}
             </span>
             {plugin.scan_run_id && (
               <span className="font-mono text-text-tertiary">
