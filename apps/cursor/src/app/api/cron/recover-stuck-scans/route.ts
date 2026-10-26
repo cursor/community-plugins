@@ -38,22 +38,45 @@ export async function GET(request: NextRequest) {
       id: string;
       slug: string;
       ok: boolean;
+      action: "reset" | "enqueued";
       error?: string;
     }> = [];
 
     for (const plugin of stuck ?? []) {
-      // Reset back to pending so the worker's loadPlugin → markScanning
-      // transition is idempotent (the prevActive snapshot is recomputed).
+      // A row still at `scanning` after the threshold was left by a worker
+      // that died mid-run. Its queue message was never archived (the drain
+      // archives only after runPluginScan has written a terminal status), so
+      // it comes back on its own once the visibility timeout expires, and
+      // the minute drain picks it up. Enqueueing here as well would put a
+      // second message for the same plugin in the queue: two agent runs
+      // racing to write the verdict. So only reset the status, which makes
+      // the worker's loadPlugin → markScanning transition idempotent (the
+      // prevActive snapshot is recomputed). If the message really is gone
+      // (a row from before the queue existed), the next tick sees this row
+      // as stale `pending` and enqueues it then.
       if (plugin.scan_status === "scanning") {
-        await supabase
+        const { error: resetError } = await supabase
           .from("plugins")
           .update({ scan_status: "pending" })
           .eq("id", plugin.id);
+        results.push({
+          id: plugin.id,
+          slug: plugin.slug,
+          ok: !resetError,
+          action: "reset",
+          ...(resetError ? { error: resetError.message } : {}),
+        });
+        continue;
       }
 
       try {
         await enqueuePluginScan(plugin.id);
-        results.push({ id: plugin.id, slug: plugin.slug, ok: true });
+        results.push({
+          id: plugin.id,
+          slug: plugin.slug,
+          ok: true,
+          action: "enqueued",
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(
@@ -64,6 +87,7 @@ export async function GET(request: NextRequest) {
           id: plugin.id,
           slug: plugin.slug,
           ok: false,
+          action: "enqueued",
           error: message,
         });
       }
@@ -72,7 +96,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       considered: stuck?.length ?? 0,
-      retried: results.filter((r) => r.ok).length,
+      retried: results.filter((r) => r.ok && r.action === "enqueued").length,
+      reset: results.filter((r) => r.ok && r.action === "reset").length,
       failed: results.filter((r) => !r.ok).length,
       results,
     });
