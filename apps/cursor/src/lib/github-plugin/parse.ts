@@ -382,10 +382,14 @@ export async function parseGitHubPlugin(
   }
 
   const components: ParsedComponent[] = [];
+  // Which sub-plugin dir each component came from ("" for the repo root), so
+  // a slug that collides across sub-plugins can be told apart below.
+  const prefixOf = new Map<ParsedComponent, string>();
 
   const prefixes = ["", ...subPluginDirs];
 
   for (const prefix of prefixes) {
+    const firstIndex = components.length;
     const ruleFiles = tree.filter(
       (f) =>
         f.type === "blob" &&
@@ -552,15 +556,28 @@ export async function parseGitHubPlugin(
         // ignore
       }
     }
+
+    for (const c of components.slice(firstIndex)) prefixOf.set(c, prefix);
   }
 
+  // Slugs come from file or directory names, so two sub-plugins that both
+  // ship, say, `skills/setup/SKILL.md` produce the same `skill:setup` key. The
+  // first occurrence keeps its slug; a later one from a sub-plugin dir gets
+  // the dir as a prefix (the hooks component already does this). Only a key
+  // that still collides after that is dropped.
   const seen = new Set<string>();
-  const deduped = components.filter((c) => {
-    const key = `${c.type}:${c.slug}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const deduped: ParsedComponent[] = [];
+  for (const c of components) {
+    let slug = c.slug;
+    if (seen.has(`${c.type}:${slug}`)) {
+      const prefix = prefixOf.get(c) ?? "";
+      if (!prefix) continue;
+      slug = slugify(`${prefix} ${c.slug}`);
+      if (seen.has(`${c.type}:${slug}`)) continue;
+    }
+    seen.add(`${c.type}:${slug}`);
+    deduped.push(slug === c.slug ? c : { ...c, slug });
+  }
 
   if (deduped.length === 0) {
     const scannedPrefixes = prefixes
