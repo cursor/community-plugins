@@ -437,6 +437,7 @@ export async function parseGitHubPlugin(
             description: `MCP server: ${name}`,
             content: JSON.stringify(cfg, null, 2),
             metadata: {
+              name,
               command: cfg.command,
               args: cfg.args,
               env: cfg.env,
@@ -578,7 +579,7 @@ export async function parseGitHubPlugin(
     throw new GitHubParseError(
       `No plugin components found in: ${scannedPrefixes}. ` +
         `We looked for: ${hints.join(", ")}. ` +
-        `Make sure your repo follows the Open Plugins standard (https://open-plugins.com).`,
+        `Make sure your repo follows the Open Plugins standard (https://agent-plugins.org).`,
       "no_components",
     );
   }

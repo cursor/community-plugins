@@ -77,7 +77,7 @@ All content is submitted through the website — no pull requests needed for dat
 
 1. Go to [cursor.directory/plugins/new](https://cursor.directory/plugins/new)
 2. Sign in with GitHub or Google
-3. Paste a GitHub repo URL — we auto-detect components following the [Open Plugins](https://open-plugins.com) standard
+3. Paste a GitHub repo URL — we auto-detect components following the [Open Plugins](https://agent-plugins.org) standard
 4. Click **Submit**
 
 Auto-detected components:
@@ -85,13 +85,16 @@ Auto-detected components:
 | Component | Path |
 |-----------|------|
 | Rules | `rules/*.mdc` |
-| MCP Servers | `.mcp.json` |
+| MCP Servers | `.mcp.json` or `mcp.json` |
 | Skills | `skills/*/SKILL.md` |
 | Agents | `agents/*.md` |
+| Commands | `commands/*.md` |
 | Hooks | `hooks/hooks.json` |
 | LSP Servers | `.lsp.json` |
 
-See the [Open Plugins specification](https://open-plugins.com/plugin-builders/specification) and [plugin template](https://github.com/cursor/plugin-template) for details.
+The manifest is read from `.plugin/plugin.json`, `.cursor-plugin/plugin.json` or `.claude-plugin/plugin.json` (first match wins). For monorepos, the same paths are also scanned inside every directory listed as `plugins[].source` in `.cursor-plugin/marketplace.json` and every directory that contains its own `.cursor-plugin/plugin.json`.
+
+See the [Open Plugins specification](https://agent-plugins.org/specification) and [plugin template](https://github.com/cursor/plugin-template) for details.
 
 ---
 
@@ -104,7 +107,7 @@ See the [Open Plugins specification](https://open-plugins.com/plugin-builders/sp
 - **Styling**: [Tailwind CSS](https://tailwindcss.com)
 - **UI**: [Radix UI](https://radix-ui.com) + [shadcn/ui](https://ui.shadcn.com)
 - **Search**: [Fuse.js](https://fusejs.io) (client-side fuzzy search)
-- **URL State**: [nuqs](https://nuqs.47ng.com)
+- **URL State**: [nuqs](https://nuqs.dev)
 - **Linting**: [Biome](https://biomejs.dev)
 
 ## Plugin security scan

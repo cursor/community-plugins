@@ -7,6 +7,7 @@ import {
   Loader2,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,6 +17,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { deletePluginAction } from "@/actions/delete-plugin";
 import { requestPluginVerificationAction } from "@/actions/request-plugin-verification";
+import { rescanOwnPluginAction } from "@/actions/rescan-own-plugin";
 import { togglePluginListingAction } from "@/actions/toggle-plugin-listing";
 import {
   AlertDialog,
@@ -106,6 +108,19 @@ export function PluginOwnerMenu({ plugin }: Props) {
     },
   );
 
+  const { execute: rescanPlugin, isExecuting: isRescanning } = useAction(
+    rescanOwnPluginAction,
+    {
+      onSuccess: () => {
+        toast.success("Scan queued. The listing updates when it finishes.");
+        router.refresh();
+      },
+      onError: ({ error }) => {
+        toast.error(error.serverError ?? "Failed to start the scan.");
+      },
+    },
+  );
+
   const { execute: deletePlugin, isExecuting: isDeleting } = useAction(
     deletePluginAction,
     {
@@ -124,9 +139,15 @@ export function PluginOwnerMenu({ plugin }: Props) {
     return null;
   }
 
-  const busy = isRequesting || isToggling || isDeleting;
+  const busy = isRequesting || isToggling || isRescanning || isDeleting;
   const canVerify = !plugin.verified && !requestPending;
   const canPublish = !active && !plugin.permanently_blocked;
+  // Mirrors the server-side gate in rescanOwnPluginAction.
+  const canRescan =
+    !plugin.permanently_blocked &&
+    (plugin.scan_status === "flagged" ||
+      plugin.scan_status === "error" ||
+      plugin.scan_status === "unscanned");
 
   return (
     <>
@@ -189,6 +210,17 @@ export function PluginOwnerMenu({ plugin }: Props) {
             >
               <Eye className="size-4 shrink-0" />
               Publish
+            </DropdownMenuItem>
+          ) : null}
+
+          {canRescan ? (
+            <DropdownMenuItem
+              className={menuItemClass}
+              disabled={busy}
+              onClick={() => rescanPlugin({ pluginId: plugin.id })}
+            >
+              <RefreshCw className="size-4 shrink-0" />
+              Re-run scan
             </DropdownMenuItem>
           ) : null}
 
