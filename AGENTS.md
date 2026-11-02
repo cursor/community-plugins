@@ -8,6 +8,7 @@
 |---|---|---|
 | Supabase stack (Postgres, Auth, PostgREST, Storage, pgmq) | `sudo supabase start` from repo root (Docker; start the daemon first with `sudo service docker start` if needed) | 54321 (API), 54322 (DB), 54323 (Studio) |
 | Next.js app (`apps/cursor`) | `bun dev` from `apps/cursor` (see README and `apps/cursor/package.json` for standard commands: `lint`, `typecheck`, `seed:*`) | 3000 |
+| Next.js app (`apps/grok-bot`, Grok Bot Directory) | `bun dev` from `apps/grok-bot` (see `apps/grok-bot/README.md`; `bun run seed:marketplace` seeds from the x.ai/bot marketplace; `GROK_BOT_DEV_LOGIN=1` adds a local password sign-in) | 3001 |
 
 Lint from repo root: `bunx biome ci .` (matches CI in `.github/workflows/ci.yml`). There is no automated test suite.
 

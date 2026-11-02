@@ -24,6 +24,11 @@ jobs:
       - name: Biome
         run: bunx biome ci .
 
-      - name: Typecheck
+      - name: Typecheck (cursor)
         working-directory: apps/cursor
         run: bun run typecheck
+
+      # next typegen writes the route types tsc needs (.next/types).
+      - name: Typecheck (grok-bot)
+        working-directory: apps/grok-bot
+        run: bunx next typegen && bun run typecheck
