@@ -4,17 +4,27 @@ import {
   type McpAuthExtra,
   verifyMcpAccessToken,
 } from "@/lib/mcp/auth";
+import { registerGrokBotTools } from "@/lib/mcp/grok-bot-tools";
 import {
   MCP_SERVER_INSTRUCTIONS,
   registerModerationTools,
 } from "@/lib/mcp/tools";
 
-const mcpHandler = createMcpHandler(registerModerationTools, {
-  serverInfo: { name: "cursor-directory-community-plugins", version: "1.0.0" },
-  instructions: MCP_SERVER_INSTRUCTIONS,
-  // No subscriptions, so every response completes with its request.
-  maxSubscriptions: 0,
-});
+const mcpHandler = createMcpHandler(
+  (server) => {
+    registerModerationTools(server);
+    registerGrokBotTools(server);
+  },
+  {
+    serverInfo: {
+      name: "cursor-directory-community-plugins",
+      version: "1.0.0",
+    },
+    instructions: MCP_SERVER_INSTRUCTIONS,
+    // No subscriptions, so every response completes with its request.
+    maxSubscriptions: 0,
+  },
+);
 
 const handler = withMcpAuth(
   async (req) => {
