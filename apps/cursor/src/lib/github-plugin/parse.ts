@@ -52,65 +52,70 @@ function parseFrontmatter(input: string): {
   data: Record<string, unknown>;
   body: string;
 } {
-  const content = input.startsWith("\uFEFF") ? input.slice(1) : input;
-  if (!content.startsWith("---\n") && !content.startsWith("---\r\n")) {
+  // Normalise CRLF so files authored on Windows parse like LF files; the
+  // closing fence may also be the last line of the file with no newline after
+  // it (a rule or skill with an empty body).
+  const content = (input.startsWith("\uFEFF") ? input.slice(1) : input).replace(
+    /\r\n/g,
+    "\n",
+  );
+  if (!content.startsWith("---\n")) {
     return { data: {}, body: content };
   }
 
-  const endIndex = content.indexOf("\n---\n", 4);
-  if (endIndex === -1) {
+  let endIndex = content.indexOf("\n---\n", 4);
+  let body: string;
+  if (endIndex !== -1) {
+    body = content.slice(endIndex + 5);
+  } else if (content.endsWith("\n---")) {
+    endIndex = content.length - 4;
+    body = "";
+  } else {
     return { data: {}, body: content };
   }
 
   const frontmatter = content.slice(4, endIndex);
-  const body = content.slice(endIndex + 5);
   const data: Record<string, unknown> = {};
-  let currentArrayKey: string | null = null;
-  let currentObjectKey: string | null = null;
-  const currentObject: Record<string, unknown> = {};
+  const lines = frontmatter.split("\n");
 
-  for (const rawLine of frontmatter.split(/\r?\n/)) {
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
     if (!rawLine.trim()) continue;
-
-    if (currentObjectKey) {
-      const subMatch = rawLine.match(/^\s{2,}(\w+):\s*(.+)$/);
-      if (subMatch) {
-        currentObject[subMatch[1]] = subMatch[2].replace(/^["']|["']$/g, "");
-        continue;
-      }
-      data[currentObjectKey] = { ...currentObject };
-      currentObjectKey = null;
-      for (const k of Object.keys(currentObject)) delete currentObject[k];
-    }
-
-    if (currentArrayKey && rawLine.match(/^\s+-\s+/)) {
-      const value = rawLine.replace(/^\s+-\s+/, "").replace(/^["']|["']$/g, "");
-      (data[currentArrayKey] as string[]).push(value);
-      continue;
-    }
-
-    const arrayKeyMatch = rawLine.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*$/);
-    if (arrayKeyMatch) {
-      currentArrayKey = arrayKeyMatch[1];
-      data[currentArrayKey] = [];
-      continue;
-    }
 
     const kvMatch = rawLine.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s+(.+)$/);
     if (kvMatch) {
-      currentArrayKey = null;
       data[kvMatch[1]] = kvMatch[2].replace(/^["']|["']$/g, "");
       continue;
     }
 
-    const objectKeyMatch = rawLine.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*$/);
-    if (objectKeyMatch && !currentArrayKey) {
-      currentObjectKey = objectKeyMatch[1];
-    }
-  }
+    // `key:` with nothing after it opens a block; the first indented line
+    // decides whether it is a list (`  - item`) or a mapping (`  sub: value`).
+    const blockKeyMatch = rawLine.match(/^([A-Za-z_][A-Za-z0-9_-]*):\s*$/);
+    if (!blockKeyMatch) continue;
+    const key = blockKeyMatch[1];
 
-  if (currentObjectKey) {
-    data[currentObjectKey] = { ...currentObject };
+    const items: string[] = [];
+    const mapping: Record<string, string> = {};
+    let isMapping = false;
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1];
+      if (!next.trim()) {
+        i++;
+        continue;
+      }
+      const itemMatch = next.match(/^\s+-\s+(.+)$/);
+      const subMatch = next.match(/^\s{2,}(\w+):\s*(.+)$/);
+      if (itemMatch && !isMapping) {
+        items.push(itemMatch[1].replace(/^["']|["']$/g, ""));
+      } else if (subMatch && items.length === 0) {
+        isMapping = true;
+        mapping[subMatch[1]] = subMatch[2].replace(/^["']|["']$/g, "");
+      } else {
+        break;
+      }
+      i++;
+    }
+    data[key] = isMapping ? mapping : items;
   }
 
   return { data, body };
