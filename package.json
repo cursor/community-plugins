@@ -10,9 +10,9 @@
     "@tailwindcss/postcss": "^4.3.0"
   },
   "overrides": {
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "resolutions": {
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   }
 }
