@@ -1,0 +1,66 @@
+---
+title: "Multi-Archetype World-Class Benchmark Protocol"
+description: "Mandatory Multi-Archetype Live Benchmark Protocol: Prevents AI from guessing or patching from static memory. Forces live web synthesis across world-class design, editorial, storytelling, and engineering references (Apple HIG, Stripe, Linear, Pentagram, Kinfolk, Vox, Cloudflare, AWS Well-Architected) before fixing or building."
+globs: "*"
+alwaysApply: true
+tags:
+  - "cursor-rules"
+  - "ai-harness"
+  - "benchmarking"
+  - "best-practices"
+  - "code-quality"
+author:
+  name: "Longwave AI Lab"
+  url: "https://github.com/longwave-ai-lab/anti-slop-ai-harness"
+---
+
+# Multi-Archetype World-Class Benchmark Protocol (`RULE-BENCHMARK-FIRST`)
+
+## PART A: ENGLISH SPECIFICATION
+
+### 1. Core Invariant: Zero Memory-Only Patching
+Whenever the user critiques an output, points out a flaw (in UI/UX, Typography, Motion Graphics, Copywriting, Product Strategy, or System Architecture), or proposes a new idea:
+1. **STRICTLY FORBIDDEN — Memory-Only Guessing**: Never rely solely on static training memory to invent a makeshift patch (such as stuffing fake technical symbols like `//`, `·`, `#REF`, `[01]`, generic SaaS boxes, or robotic filler text).
+2. **Step 1 — Mandatory Multi-Archetype Live Benchmark**: Immediately invoke web search / URL reading / browser inspection tools (`search_web`, `read_url_content`, or equivalent) to survey multiple world-class reference archetypes across industries:
+   - **Product & Interface Design**: *Apple Human Interface Guidelines (HIG), Stripe Press, Linear, Raycast, Vercel*
+   - **Editorial & Brand Identity**: *Pentagram, Kinfolk, The New York Times Visual Investigations, Monocle*
+   - **Visual Storytelling & Motion**: *Ordinary Folk, Vox, Johnny Harris, Kurzgesagt, Lemmino, Cleo Abram*
+   - **Engineering & System Architecture**: *Stripe API Design, Cloudflare Architecture, AWS Well-Architected, Designing Data-Intensive Applications*
+   - Never lock into a single narrow template. Extract task-specific mechanisms from at least 2–3 distinct archetypes: visual mechanics and layout ratios for UI, typography, or motion tasks; structural clarity and narrative flow for copywriting or product strategy; and API contracts, failure modes, latency budgets, and operability for engineering or system architecture tasks.
+3. **Step 2 — Objective Self-Critique vs. Global Standard**: Present a concise, transparent comparison to the user before or alongside the fix:
+   - *Why did the previous attempt fail or feel cheap?* (e.g., fell into "Sci-Fi Greebling", used nested bordered cards, relied on vague passive prose, or lacked explicit failure/latency boundaries).
+   - *How do top-tier studios or engineering teams solve the root problem structurally?*
+4. **Step 3 — World-Class Execution**: Implement the distilled mechanism directly into the codebase or document with measurable constraints (exact spacing, typography scale, structural logic, or engineering contracts).
+   - Before delivery, record each selected reference's title, URL, access date, supported mechanism, and the concrete change that applies it.
+
+### 2. Verification Checklist Before Delivery
+- [ ] Did I search live external benchmarks across at least 2–3 distinct archetypes instead of guessing from memory?
+- [ ] Did I record each selected reference's title, URL, access date, supported mechanism, and concrete applied change?
+- [ ] Did I eliminate all decorative filler that does not serve human comprehension or system reliability?
+
+---
+
+## PHẦN B: QUY CHUẨN TIẾNG VIỆT (VIETNAMESE SPECIFICATION)
+
+### 1. Nguyên Tắc Bất Biến: Tuyệt Đối Không Sửa Lỗi Bằng Trí Nhớ Tĩnh (`Zero Memory-Only Patching`)
+Bất cứ khi nào người dùng góp ý, phản biện, chê một chi tiết chưa đạt (về Thiết kế giao diện, Chữ nghĩa, Đồ họa chuyển động, Văn phong, Chiến lược sản phẩm, hay Kiến trúc kỹ thuật) hoặc đưa ra một ý tưởng mới:
+1. **CẤM TUYỆT ĐỐI tự chế bản vá từ trí nhớ sẵn có**: Không bao giờ tự suy diễn hoặc đắp vá tạm bợ bằng thói quen cũ của AI (như nhồi nhét ký hiệu giả kỹ thuật `//`, `·`, `#REF`, `[01]`, đóng khung viền chồng chéo, hoặc viết văn mẫu sáo rỗng).
+2. **Bước 1 — Tự Động Khảo Sát Đa Hệ Quy Chiếu Tinh Hoa Thế Giới (`Mandatory Multi-Archetype Web Benchmark`)**: Lập tức gọi công cụ tìm kiếm web (`search_web`, `read_url_content`, hoặc trình duyệt) để khảo sát rộng khắp nhiều hệ quy chiếu hàng đầu thế giới:
+   - **Thiết kế Sản phẩm & Giao diện**: *Apple HIG, Stripe, Linear, Raycast, Vercel*
+   - **Biên tập & Nhận diện Thương hiệu**: *Pentagram, Kinfolk, The New York Times, Monocle*
+   - **Kể chuyện Thị giác & Đồ họa**: *Ordinary Folk, Vox, Johnny Harris, Kurzgesagt, Lemmino, Cleo Abram*
+   - **Kỹ thuật & Kiến trúc Hệ thống**: *Stripe API Design, Cloudflare Architecture, AWS Well-Architected, Designing Data-Intensive Applications*
+   - Tuyệt đối không thu hẹp vào một lối mòn duy nhất. Bắt buộc đối chiếu tối thiểu 2–3 hệ quy chiếu khác nhau và bóc tách chuẩn mực đúng với bản chất tác vụ: cơ chế thị giác và tỷ lệ bố cục cho giao diện, chữ nghĩa hoặc chuyển động; cấu trúc lập luận cho văn phong và chiến lược sản phẩm; hợp đồng giao tiếp (API contracts), kịch bản chịu lỗi (failure modes), ngân sách độ trễ (latency budgets) và khả năng vận hành (operability) cho kiến trúc kỹ thuật.
+3. **Bước 2 — Phân Tích Đối Sánh Khách Quan (`Self-Critique vs. Global Standard`)**: Chỉ rõ ngắn gọn cho người dùng:
+   - *Vì sao cách làm cũ bị lỗi hoặc kém sang?* (Ví dụ: Mắc lỗi "Sci-Fi Greebling" lạm dụng dấu gạch chéo `//`, mã số giả, chữ quá nhỏ, câu văn dịch ngô nghê, hoặc thiếu kiểm soát lỗi hệ thống).
+   - *Tinh hoa thế giới giải quyết tận gốc bài toán đó bằng cơ chế nào?*
+4. **Bước 3 — Thi Công Chuẩn Quốc Tế (`World-Class Execution`)**: Áp dụng trực tiếp giải pháp đã chắt lọc vào sản phẩm với thông số rõ ràng, sạch sẽ, không thỏa hiệp.
+   - Trước khi bàn giao, ghi lại tên nguồn, URL, ngày truy cập, cơ chế được nguồn đó hỗ trợ và thay đổi cụ thể đã áp dụng cơ chế đó.
+
+### 2. Danh Sách Tự Kiểm Tra Trước Khi Bàn Giao
+- [ ] Đã thực sự tra cứu trực tiếp tối thiểu 2–3 hệ quy chiếu chuẩn quốc tế thay vì tự đoán mò bằng trí nhớ tĩnh chưa?
+- [ ] Đã ghi rõ tên nguồn, URL, ngày truy cập, cơ chế thiết kế / kỹ thuật học hỏi và thay đổi cụ thể đã áp dụng chưa?
+- [ ] Đã dọn sạch 100% chi tiết rườm rà làm nhiễu mắt người xem hoặc làm giảm độ ổn định hệ thống chưa?
+
+---
+*Upstream Source: [anti-slop-ai-harness](https://github.com/longwave-ai-lab/anti-slop-ai-harness) (MIT License).*
