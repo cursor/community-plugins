@@ -20,6 +20,7 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { Agent, CursorAgentError, type RunResult } from "@cursor/sdk";
+import { SqliteLocalAgentStore } from "@cursor/sdk/sqlite";
 import { x as extractTar } from "tar";
 import { z } from "zod";
 import {
@@ -303,15 +304,14 @@ const REPO_ARCHIVE_MAX_BYTES = 100 * 1024 * 1024;
 // The Cursor SDK persists local-agent state under `~/.cursor/projects/...` by
 // default, which crashed every scan with `mkdir ENOENT` (see
 // cursor/community-plugins#395). A single stable dir — not per-scan — so a
-// warm function instance reuses one run store instead of opening a new
-// sqlite handle per scan.
+// warm function instance reuses one state root across scans.
 const SDK_STATE_HOME = path.join(tmpdir(), "cursor-sdk-home");
 
 /**
  * Point every Cursor SDK state surface at writable tmpfs and return the
- * `stateRoot` to pass to `Agent.prompt`:
+ * `stateRoot` for the local agent store:
  *
- * - `platform.stateRoot` covers the SDK's in-process run/checkpoint stores
+ * - `stateRoot` covers the SDK's in-process run/checkpoint stores
  *   (the `sdk-agent-store` path that failed in production).
  * - `HOME` / `CURSOR_CONFIG_DIR` / `CURSOR_DATA_DIR` cover the spawned
  *   `cursor-agent` process and the SDK's remaining `homedir()` fallbacks.
@@ -485,6 +485,7 @@ async function runSecurityAgent(
     throw err;
   }
 
+  let store: SqliteLocalAgentStore | undefined;
   try {
     const stateRoot = await redirectSdkStateToTmp();
     const prompt = buildPrompt(plugin, { hasRepo, similar });
@@ -499,16 +500,16 @@ async function runSecurityAgent(
     const agentStartedAt = Date.now();
     let result: RunResult;
     try {
+      // Keep the SDK's run store off the (read-only) default home dir.
+      store = await SqliteLocalAgentStore.open({
+        workspaceRef: cwd,
+        stateRoot,
+      });
       result = await Agent.prompt(prompt, {
         apiKey,
         model: { id: "composer-2" },
-        local: { cwd },
+        local: { cwd, store },
         name: `scan:${plugin.slug}`,
-        // Keep the SDK's run store off the (read-only) default home dir.
-        // `CursorAgentPlatformOptions` isn't shipped with the SDK's types,
-        // so this field is typed as `any` — the runtime contract is
-        // `{ stateRoot?: string; workspaceRef?: string }`.
-        platform: { stateRoot },
       });
     } catch (err) {
       if (err instanceof CursorAgentError && err.isRetryable) {
@@ -543,6 +544,7 @@ async function runSecurityAgent(
     });
     return { ...verdict, runId: result.id };
   } finally {
+    await store?.dispose();
     await cleanup();
   }
 }
