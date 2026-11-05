@@ -437,6 +437,7 @@ export async function parseGitHubPlugin(
             description: `MCP server: ${name}`,
             content: JSON.stringify(cfg, null, 2),
             metadata: {
+              name,
               command: cfg.command,
               args: cfg.args,
               env: cfg.env,
