@@ -1,5 +1,6 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { ExternalLink, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { rescanPluginAction } from "@/actions/review-flagged-plugin";
 import { declinePluginAction } from "@/actions/review-plugin";
 import { Button } from "@/components/ui/button";
-import type { PluginRow } from "@/lib/plugins/types";
 
 function StuckCard({ plugin }: { plugin: PluginRow }) {
   const [dismissed, setDismissed] = useState(false);

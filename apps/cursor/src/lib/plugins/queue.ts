@@ -1,10 +1,13 @@
 import "server-only";
+import {
+  PLUGIN_SCAN_QUEUE,
+  type PluginScanMessage,
+  enqueuePluginScan as sendPluginScan,
+} from "@directories/plugins/queue";
 import { after } from "next/server";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
-export const PLUGIN_SCAN_QUEUE = "plugin_scans";
-
-export type PluginScanMessage = { plugin_id: string };
+export { PLUGIN_SCAN_QUEUE };
 
 export type PluginScanQueueRow = {
   msg_id: number;
@@ -13,19 +16,7 @@ export type PluginScanQueueRow = {
 };
 
 export async function enqueuePluginScan(pluginId: string): Promise<void> {
-  const supabase = await createAdminClient();
-  const { error } = await supabase
-    // biome-ignore lint/suspicious/noExplicitAny: pgmq_public is not in the generated types
-    .schema("pgmq_public" as any)
-    .rpc("send", {
-      queue_name: PLUGIN_SCAN_QUEUE,
-      message: { plugin_id: pluginId } satisfies PluginScanMessage,
-      sleep_seconds: 0,
-    });
-
-  if (error) {
-    throw new Error(`pgmq_public.send failed: ${error.message}`);
-  }
+  await sendPluginScan(await createAdminClient(), pluginId);
 }
 
 export async function readNextPluginScan(

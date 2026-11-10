@@ -1,5 +1,6 @@
 "use client";
 
+import type { FlagSeverity, PluginRow } from "@directories/plugins/types";
 import {
   Check,
   ExternalLink,
@@ -19,7 +20,6 @@ import {
 } from "@/actions/review-flagged-plugin";
 import { declinePluginAction } from "@/actions/review-plugin";
 import { Button } from "@/components/ui/button";
-import type { FlagSeverity, PluginRow } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 
 const severityClass: Record<FlagSeverity, string> = {

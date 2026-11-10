@@ -1,7 +1,7 @@
 import "server-only";
+import type { FlagSeverity, ScanStatus } from "@directories/plugins/types";
 import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 import { enqueuePluginScan, kickDrainAfterResponse } from "@/lib/plugins/queue";
-import type { FlagSeverity, ScanStatus } from "@/lib/plugins/types";
 import { createClient } from "@/utils/supabase/admin-client";
 
 /**

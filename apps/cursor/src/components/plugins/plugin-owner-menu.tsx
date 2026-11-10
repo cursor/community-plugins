@@ -1,5 +1,6 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import {
   BadgeCheck,
   Eye,
@@ -43,7 +44,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { PluginRow } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 

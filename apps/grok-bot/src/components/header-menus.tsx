@@ -77,7 +77,7 @@ export function UserMenu({
         aria-hidden={!open}
       >
         <Link href="/my-bots" role="menuitem" style={nth(0)}>
-          Your bots
+          Your submissions
         </Link>
         {admin && (
           <Link href="/admin" role="menuitem" style={nth(1)}>
@@ -129,11 +129,12 @@ export function MobileMenu({
       {open && (
         <div className="mobile-menu">
           <Link href="/">Bots</Link>
+          <Link href="/?tab=apps">Apps</Link>
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>
           {signedIn ? (
-            <Link href="/my-bots">Your bots</Link>
+            <Link href="/my-bots">Your submissions</Link>
           ) : (
             pathname !== "/login" && <Link href="/login">Sign in</Link>
           )}

@@ -1,11 +1,14 @@
 "use server";
 
+import { resolveComponentSlug } from "@directories/plugins/slug";
+import {
+  type ComponentInput,
+  componentInputSchema,
+} from "@directories/plugins/types";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { enqueuePluginScan, kickDrainAfterResponse } from "@/lib/plugins/queue";
-import { type ComponentInput, componentInputSchema } from "@/lib/plugins/types";
 import { pluginScanLimit } from "@/lib/rate-limit";
-import { resolveComponentSlug } from "@/lib/slug";
 import { createClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 

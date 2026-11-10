@@ -20,6 +20,7 @@ export async function Header({ viewer }: { viewer: Viewer | null }) {
         </Link>
         <nav className="nav">
           <Link href="/">Bots</Link>
+          <Link href="/?tab=apps">Apps</Link>
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>

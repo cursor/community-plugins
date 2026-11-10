@@ -1,0 +1,21 @@
+{
+  "name": "@directories/plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./apps": "./src/apps.ts",
+    "./github": "./src/github.ts",
+    "./insert": "./src/insert.ts",
+    "./marketplace": "./src/marketplace.ts",
+    "./queue": "./src/queue.ts",
+    "./slug": "./src/slug.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.105.3"
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { BadgeCheck, BadgeMinus, Check, Loader2, X } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
@@ -9,7 +10,6 @@ import {
 } from "@/actions/verify-plugin";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import type { PluginRow } from "@/lib/plugins/types";
 
 type Props = {
   plugin: PluginRow;

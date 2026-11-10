@@ -6,6 +6,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/sync-marketplace-plugins",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/queue/plugin-scans/drain",
       "schedule": "* * * * *"
     }

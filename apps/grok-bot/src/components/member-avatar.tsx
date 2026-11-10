@@ -13,13 +13,13 @@ const PALETTE = [
   "#777777",
 ];
 
-function colorFor(name: string) {
+export function colorFor(name: string) {
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return PALETTE[h % PALETTE.length];
 }
 
-function initials(name: string) {
+export function initials(name: string) {
   return (
     name
       .split(/\s+/)

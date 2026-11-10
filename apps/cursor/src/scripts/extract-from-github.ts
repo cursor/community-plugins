@@ -32,7 +32,7 @@ import {
   type GitHubRepoMeta,
   type ParsedPlugin,
   parseGitHubPlugin,
-} from "@/lib/github-plugin/parse";
+} from "@directories/plugins/github";
 
 type Source =
   | "seed:cursor-spec"

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useState } from "react";
@@ -7,7 +8,6 @@ import { toast } from "sonner";
 import { updatePluginAction } from "@/actions/update-plugin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { PluginRow } from "@/lib/plugins/types";
 import UploadLogo from "../upload-logo";
 import {
   type ComponentDraft,

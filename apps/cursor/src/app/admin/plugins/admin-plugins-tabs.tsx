@@ -1,7 +1,7 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { useQueryState } from "nuqs";
-import type { PluginRow } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 import { FlaggedReviewList } from "./flagged-review-list";
 import { PluginReviewList } from "./plugin-review-list";

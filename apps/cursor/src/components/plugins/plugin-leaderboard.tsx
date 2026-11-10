@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { OfficialBadge } from "@/components/plugins/official-badge";
 import { PluginIconFallback } from "@/components/plugins/plugin-icon";
 import { VerifiedBadge } from "@/components/plugins/verified-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +16,7 @@ export type LeaderboardItem = {
   author?: string | null;
   authorUrl?: string | null;
   verified?: boolean;
+  official?: boolean;
   installCount: number;
   installs30d?: number;
   starCount: number;
@@ -275,6 +277,7 @@ function ItemRow({
               {item.name}
             </span>
             {item.verified ? <VerifiedBadge size="sm" /> : null}
+            {item.official ? <OfficialBadge size="sm" /> : null}
           </div>
           {item.description ? (
             <p className="max-w-[60ch] truncate text-xs text-muted-foreground">

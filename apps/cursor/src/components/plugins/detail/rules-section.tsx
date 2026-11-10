@@ -1,7 +1,7 @@
 "use client";
 
+import type { PluginComponent } from "@directories/plugins/types";
 import { ChevronDown } from "lucide-react";
-import type { PluginComponent } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 import { AddToCursorOrCopy } from "./add-to-cursor-or-copy";
 

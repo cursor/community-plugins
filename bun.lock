@@ -13,6 +13,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@cursor/sdk": "^1.2.0",
+        "@directories/plugins": "workspace:*",
         "@hookform/resolvers": "^5.2.2",
         "@modelcontextprotocol/server": "^2.3.1",
         "@radix-ui/react-alert-dialog": "1.1.15",
@@ -71,6 +72,7 @@
       "name": "@directories/grok-bot",
       "version": "0.1.0",
       "dependencies": {
+        "@directories/plugins": "workspace:*",
         "@supabase/ssr": "^0.10.3",
         "@supabase/supabase-js": "^2.105.3",
         "@vercel/analytics": "^1.5.0",
@@ -93,6 +95,16 @@
         "postcss": "^8.5.32",
         "tailwindcss": "^4.2.4",
         "typescript": "^6",
+      },
+    },
+    "packages/plugins": {
+      "name": "@directories/plugins",
+      "version": "0.1.0",
+      "dependencies": {
+        "zod": "^4.6.7",
+      },
+      "peerDependencies": {
+        "@supabase/supabase-js": "^2.105.3",
       },
     },
   },
@@ -141,6 +153,8 @@
     "@directories/cursor": ["@directories/cursor@workspace:apps/cursor"],
 
     "@directories/grok-bot": ["@directories/grok-bot@workspace:apps/grok-bot"],
+
+    "@directories/plugins": ["@directories/plugins@workspace:packages/plugins"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.3", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA=="],
 

@@ -13,9 +13,11 @@
     "typecheck": "tsc --noEmit",
     "seed:extract": "bun run --env-file=.env src/scripts/extract-from-github.ts",
     "seed:insert": "bun run --env-file=.env src/scripts/insert-from-jsonl.ts",
+    "seed:marketplace-plugins": "bun run --conditions=react-server --env-file=.env src/scripts/sync-marketplace-plugins.ts",
     "mcp:create-oauth-client": "bun run --env-file=.env src/scripts/create-mcp-oauth-client.ts"
   },
   "dependencies": {
+    "@directories/plugins": "workspace:*",
     "@cursor/sdk": "^1.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/server": "^2.3.1",

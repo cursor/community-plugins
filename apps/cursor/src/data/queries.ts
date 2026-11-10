@@ -25,8 +25,8 @@
  *   mcps               — MCP listings
  */
 
+import type { PluginRow } from "@directories/plugins/types";
 import { cacheLife, cacheTag } from "next/cache";
-import type { PluginRow } from "@/lib/plugins/types";
 import { createClient } from "@/utils/supabase/admin-client";
 import { fetchAllPages } from "@/utils/supabase/pagination";
 
@@ -347,6 +347,7 @@ type PluginListing = Pick<
   | "permanently_blocked"
   | "flag_severity"
   | "scan_status"
+  | "marketplace_plugin_id"
 >;
 
 // Every active plugin for the homepage leaderboard, plugin static params and
@@ -368,9 +369,10 @@ export async function getPluginListing(): Promise<{
     const { data, error } = await supabase
       .from("plugins")
       .select(
-        "id, name, slug, description, logo, author_name, author_url, verified, install_count, star_count, created_at, updated_at, permanently_blocked, flag_severity, scan_status",
+        "id, name, slug, description, logo, author_name, author_url, verified, install_count, star_count, created_at, updated_at, permanently_blocked, flag_severity, scan_status, marketplace_plugin_id",
       )
       .eq("active", true)
+      .not("unavailable_in", "cs", "{cursor}")
       .order("created_at", { ascending: false })
       .order("id")
       .range(from, to);

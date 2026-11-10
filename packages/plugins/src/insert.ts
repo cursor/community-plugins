@@ -1,15 +1,16 @@
 /**
  * Pure plugin insert.
  *
- * Wrapped by [`createPluginAction`](src/actions/create-plugin.ts) for the auth'd
- * user-submission path and by the seed scripts for bulk import. Server actions
- * stay responsible for auth, rate-limiting, and `revalidatePath` — this lib
- * only touches the database and (optionally) enqueues the security scan.
+ * Wrapped by cursor.directory's `createPluginAction` and the Grok Bot
+ * Directory's `submitApp` for the auth'd user-submission paths, and by the
+ * seed scripts for bulk import. Callers stay responsible for auth,
+ * rate-limiting, and cache revalidation — this lib only touches the database
+ * and (optionally) enqueues the security scan.
  */
 
-import { enqueuePluginScan, kickDrainAfterResponse } from "@/lib/plugins/queue";
-import { resolveComponentSlug } from "@/lib/slug";
-import { createClient } from "@/utils/supabase/admin-client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { enqueuePluginScan } from "./queue";
+import { resolveComponentSlug } from "./slug";
 
 type ComponentInput = {
   type: string;
@@ -22,6 +23,8 @@ type ComponentInput = {
 
 export type InsertPluginInput = {
   name: string;
+  /** Must be unused; when omitted the database derives one from `name`. */
+  slug?: string;
   description: string;
   logo?: string | null;
   repository?: string | null;
@@ -64,18 +67,23 @@ export class InsertPluginError extends Error {
   }
 }
 
+/**
+ * Inserts the plugin with a service-role client. `enqueued` reports whether
+ * the security scan was queued, so a caller that can reach the drain route
+ * can start it right away instead of waiting for the next cron tick.
+ */
 export async function insertPlugin(
+  supabase: SupabaseClient,
   input: InsertPluginInput,
   options: InsertPluginOptions,
-): Promise<{ id: string; slug: string }> {
-  const supabase = await createClient();
-
+): Promise<{ id: string; slug: string; enqueued: boolean }> {
   const skipScan = options.skipScan === true;
 
   const { data: plugin, error: pluginError } = await supabase
     .from("plugins")
     .insert({
       name: input.name,
+      ...(input.slug ? { slug: input.slug } : {}),
       description: input.description,
       logo: input.logo || null,
       repository: input.repository || null,
@@ -140,10 +148,11 @@ export async function insertPlugin(
     );
   }
 
+  let enqueued = false;
   if (!skipScan) {
     try {
-      await enqueuePluginScan(plugin.id);
-      kickDrainAfterResponse();
+      await enqueuePluginScan(supabase, plugin.id);
+      enqueued = true;
     } catch (queueError) {
       // Don't fail the insert if the queue is unreachable — the
       // recover-stuck-scans cron will re-enqueue any rows left at
@@ -152,5 +161,5 @@ export async function insertPlugin(
     }
   }
 
-  return { id: plugin.id, slug: plugin.slug };
+  return { id: plugin.id, slug: plugin.slug, enqueued };
 }

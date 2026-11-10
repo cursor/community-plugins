@@ -1,5 +1,12 @@
 "use client";
 
+import { slugify } from "@directories/plugins/slug";
+import {
+  COMPONENT_TYPE_LABELS,
+  COMPONENT_TYPES,
+  type ComponentInput,
+  type ComponentType,
+} from "@directories/plugins/types";
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
@@ -11,13 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  COMPONENT_TYPE_LABELS,
-  COMPONENT_TYPES,
-  type ComponentInput,
-  type ComponentType,
-} from "@/lib/plugins/types";
-import { slugify } from "@/lib/slug";
 
 /**
  * A plugin component as it exists while being edited in a form, before it is

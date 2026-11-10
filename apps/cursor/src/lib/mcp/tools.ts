@@ -1,4 +1,5 @@
 import "server-only";
+import type { PluginRow } from "@directories/plugins/types";
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
 import { getPublicOrigin } from "mcp-handler";
 import { z } from "zod";
@@ -23,7 +24,6 @@ import {
   setPluginVerified,
   unpublishPlugin,
 } from "@/lib/plugins/moderation";
-import type { PluginRow } from "@/lib/plugins/types";
 import { mcpModerationLimit } from "@/lib/rate-limit";
 import { createClient } from "@/utils/supabase/admin-client";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { Check, ExternalLink, Loader2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
@@ -10,7 +11,6 @@ import {
   declinePluginAction,
 } from "@/actions/review-plugin";
 import { Button } from "@/components/ui/button";
-import type { PluginRow } from "@/lib/plugins/types";
 
 function PluginReviewCard({ plugin }: { plugin: PluginRow }) {
   const [dismissed, setDismissed] = useState(false);

@@ -99,12 +99,130 @@ export const FIXTURES = {
   },
 } as const;
 
+// Fixture apps are cursor.directory plugins (shared table) with slugs
+// starting "e2e-app-"; their components go with them (on delete cascade).
+const APP_SLUG_PREFIX = "e2e-app-";
+
+export const APP_FIXTURES = {
+  official: {
+    slug: "e2e-app-official",
+    name: "Zephyr App Official",
+    description: "An official app from the marketplace, for tests.",
+    marketplaceId: "990000001",
+  },
+  community: {
+    slug: "e2e-app-community",
+    name: "Zephyr App Community",
+    description: "A community app with a remote MCP server and a skill.",
+    serverUrl: "https://mcp.example.com/zephyr",
+  },
+  pending: {
+    slug: "e2e-app-pending",
+    name: "Zephyr App Pending",
+    description: "A community app waiting for its security check.",
+  },
+  // Neither of these is an app: one only runs in Cursor, the other is
+  // marked as not working in Grok Bot.
+  cursorOnly: {
+    slug: "e2e-app-cursor-only",
+    name: "Zephyr App Cursor Only",
+    description: "Rules only; Grok Bot can't use it.",
+  },
+  notInGrokBot: {
+    slug: "e2e-app-not-in-grok-bot",
+    name: "Zephyr App Not In Grok Bot",
+    description: "The marketplace says it doesn't work in Grok Bot.",
+  },
+} as const;
+
 export async function removeFixtures() {
   const { error } = await db()
     .from("grok_bots")
     .delete()
     .like("slug", `${SLUG_PREFIX}%`);
   if (error) throw error;
+  const { error: appError } = await db()
+    .from("plugins")
+    .delete()
+    .like("slug", `${APP_SLUG_PREFIX}%`);
+  if (appError) throw appError;
+}
+
+async function seedApps(owner: string) {
+  const plugin = (
+    f: { slug: string; name: string; description: string },
+    extra: Record<string, unknown>,
+  ) => ({
+    slug: f.slug,
+    name: f.name,
+    description: f.description,
+    active: true,
+    scan_status: "safe",
+    // A multi-row insert sends every column for every row, so defaults
+    // don't apply to columns other rows set.
+    unavailable_in: [],
+    marketplace_categories: [],
+    ...extra,
+  });
+  const { data, error } = await db()
+    .from("plugins")
+    .insert([
+      plugin(APP_FIXTURES.official, {
+        discovery_source: "marketplace",
+        marketplace_plugin_id: APP_FIXTURES.official.marketplaceId,
+        marketplace_categories: ["PRODUCTIVITY"],
+        author_name: "Zephyr Labs",
+        scan_status: "unscanned",
+      }),
+      plugin(APP_FIXTURES.community, { owner_id: owner }),
+      plugin(APP_FIXTURES.pending, {
+        owner_id: owner,
+        active: false,
+        scan_status: "pending",
+      }),
+      plugin(APP_FIXTURES.cursorOnly, {}),
+      plugin(APP_FIXTURES.notInGrokBot, {
+        discovery_source: "marketplace",
+        marketplace_plugin_id: "990000002",
+        unavailable_in: ["grok_bot"],
+      }),
+    ])
+    .select("id, slug");
+  if (error) throw error;
+  const id = (slug: string) => data.find((p) => p.slug === slug)?.id;
+  const server = (slug: string, name: string, content: string | null) => ({
+    plugin_id: id(slug),
+    type: "mcp_server",
+    name,
+    slug: name,
+    content,
+  });
+  const { error: compError } = await db()
+    .from("plugin_components")
+    .insert([
+      server(APP_FIXTURES.official.slug, "zephyr-official", null),
+      server(
+        APP_FIXTURES.community.slug,
+        "zephyr-community",
+        JSON.stringify({ url: APP_FIXTURES.community.serverUrl }),
+      ),
+      {
+        plugin_id: id(APP_FIXTURES.community.slug),
+        type: "skill",
+        name: "zephyr-notes",
+        slug: "zephyr-notes",
+        description: "Writes meeting notes.",
+      },
+      server(APP_FIXTURES.pending.slug, "zephyr-pending", null),
+      {
+        plugin_id: id(APP_FIXTURES.cursorOnly.slug),
+        type: "rule",
+        name: "zephyr-rule",
+        slug: "zephyr-rule",
+      },
+      server(APP_FIXTURES.notInGrokBot.slug, "zephyr-hidden", null),
+    ]);
+  if (compError) throw compError;
 }
 
 /** Puts the fixture bots back in their starting state. */
@@ -179,6 +297,7 @@ export async function seedFixtures() {
       },
     ]);
   if (error) throw error;
+  await seedApps(owner);
 }
 
 const pick = (f: { slug: string; name: string; description: string }) => ({

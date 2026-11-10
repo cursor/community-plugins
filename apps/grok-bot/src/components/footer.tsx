@@ -6,8 +6,10 @@ const COLUMNS: [string, [href: string, label: string][]][] = [
     "Directory",
     [
       ["/", "Bots"],
+      ["/?tab=apps", "Apps"],
       ["/submit", "Submit a bot"],
-      ["/my-bots", "Your bots"],
+      ["/submit?kind=app", "Submit an app"],
+      ["/my-bots", "Your submissions"],
     ],
   ],
   [

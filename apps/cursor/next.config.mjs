@@ -9,6 +9,7 @@ const nextConfig = {
   turbopack: {
     root: resolve(__dirname, "../.."),
   },
+  transpilePackages: ["@directories/plugins"],
   serverExternalPackages: ["@cursor/sdk"],
   headers: async () => {
     return [
@@ -135,6 +136,13 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      {
+        // Logos of plugins imported from the Cursor Marketplace.
+        hostname: "cursor-cdn.com",
+      },
+      {
+        hostname: "ptht05hbb1ssoooe.public.blob.vercel-storage.com",
+      },
       {
         hostname: "cdn.brandfetch.io",
       },

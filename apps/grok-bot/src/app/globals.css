@@ -909,6 +909,199 @@ img {
   margin-top: 56px;
 }
 
+/* Apps (Grok Bot's plugins: MCP servers and skills) */
+.directory-tabs {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 24px;
+}
+.directory-tabs .seg > a {
+  height: 32px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.section-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.app-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 22%;
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-weight: 500;
+  color: #fff;
+}
+.app-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.app-row {
+  grid-template-columns: 1fr auto;
+}
+.app-contents {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .app-row {
+    grid-template-columns: 1fr auto;
+  }
+  .app-contents {
+    display: none;
+  }
+}
+.app-badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  height: 24px;
+  margin-left: 10px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--pill);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.detail .app-logo {
+  margin-bottom: 4px;
+}
+.app-parts,
+.app-setup {
+  margin-top: 48px;
+  max-width: 760px;
+}
+.part-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.part {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  column-gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--card);
+}
+.part-kind {
+  grid-row: span 2;
+  font-size: 13px;
+  color: var(--muted);
+}
+.part-name {
+  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.part-desc {
+  grid-column: 2;
+  font-size: 14px;
+  color: var(--muted);
+}
+.setup-lede {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+.setup-lede a,
+.app-elsewhere a,
+.app-setup .muted a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.setup-server {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--card);
+  margin-bottom: 12px;
+}
+.setup-server h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+.setup-fields {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+  align-items: center;
+}
+.setup-fields dt {
+  font-size: 13px;
+  color: var(--muted);
+}
+.setup-fields dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.setup-fields code,
+.code-block pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.setup-fields code {
+  overflow-wrap: anywhere;
+}
+.setup-json {
+  margin-top: 12px;
+}
+.setup-json summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+.code-block {
+  position: relative;
+  margin-top: 8px;
+}
+.code-block pre {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+  overflow-x: auto;
+}
+.code-block .btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.app-elsewhere {
+  margin-top: 40px;
+  font-size: 14px;
+}
+.subs-actions {
+  display: flex;
+  gap: 8px;
+}
+.submit-kind {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.share-howto-alt a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Members, submit, login */
 .form {
   max-width: 600px;

@@ -21,20 +21,20 @@ import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { Agent, CursorAgentError, type RunResult } from "@cursor/sdk";
 import { SqliteLocalAgentStore } from "@cursor/sdk/sqlite";
-import { x as extractTar } from "tar";
-import { z } from "zod";
 import {
   fetchWithRateLimit,
   githubAuthHeaders,
   parseGitHubUrl,
-} from "@/lib/github-plugin/parse";
+} from "@directories/plugins/github";
 import {
   FLAG_CATEGORIES,
   FLAG_SEVERITIES,
   type PluginComponent,
   SCAN_VERDICTS,
   type ScanVerdict,
-} from "@/lib/plugins/types";
+} from "@directories/plugins/types";
+import { x as extractTar } from "tar";
+import { z } from "zod";
 import { createClient } from "@/utils/supabase/admin-client";
 
 /**

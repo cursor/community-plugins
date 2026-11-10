@@ -1,7 +1,10 @@
 "use server";
 
+import {
+  GitHubParseError,
+  parseGitHubPlugin,
+} from "@directories/plugins/github";
 import { z } from "zod";
-import { GitHubParseError, parseGitHubPlugin } from "@/lib/github-plugin/parse";
 import { ActionError, authActionClient } from "./safe-action";
 
 export const parseGitHubPluginAction = authActionClient

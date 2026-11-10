@@ -8,7 +8,7 @@
  * endpoints from 60 req/h (unauth) to 5,000 req/h (auth).
  */
 
-import { slugify } from "@/lib/slug";
+import { slugify } from "./slug";
 
 export type ParsedComponent = {
   type: string;

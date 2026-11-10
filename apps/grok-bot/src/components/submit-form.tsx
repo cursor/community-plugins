@@ -279,7 +279,7 @@ export function SubmitForm({
             {existing.status === "listed" ? (
               <Link href={`/bots/${existing.slug}`}>View listing</Link>
             ) : existing.yours ? (
-              <Link href="/my-bots">Your bots</Link>
+              <Link href="/my-bots">Your submissions</Link>
             ) : null}
           </span>
         </div>

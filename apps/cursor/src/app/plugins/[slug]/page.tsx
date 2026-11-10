@@ -13,6 +13,9 @@ export async function generateMetadata({
   const { slug } = await params;
 
   const { data: plugin } = await getPluginBySlug(slug);
+  if (plugin?.unavailable_in?.includes("cursor")) {
+    return { title: "Plugin Not Found" };
+  }
   if (plugin?.active) {
     const title = `${plugin.name} | Cursor Directory`;
     const description = plugin.description ?? undefined;
@@ -49,7 +52,7 @@ export default async function Page({ params }: { params: Params }) {
   const { slug } = await params;
 
   const { data: plugin } = await getPluginBySlug(slug);
-  if (!plugin) notFound();
+  if (!plugin || plugin.unavailable_in?.includes("cursor")) notFound();
 
   return <PluginDetailView plugin={plugin} />;
 }

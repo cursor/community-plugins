@@ -150,5 +150,11 @@ export type PluginRow = {
   verified_at: string | null;
   verified_by: string | null;
   verification_requested_at: string | null;
+  /** Set for plugins from the Cursor Marketplace (imported or linked). */
+  marketplace_plugin_id: string | null;
+  marketplace_updated_at: string | null;
+  marketplace_categories: string[];
+  /** Clients the plugin doesn't work in: "cursor" and/or "grok_bot". */
+  unavailable_in: string[];
   plugin_components?: PluginComponent[];
 };

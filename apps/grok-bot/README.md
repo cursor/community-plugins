@@ -50,8 +50,45 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   those parts (gaze with foreshortening and lean, blinks, expression
   crossfades, squash-and-stretch hops) without drawing any new geometry.
   The empty, error and not-found pages use the faces as static CSS masks.
-- **Sharing:** `sitemap.xml` (listed bots), `robots.txt`, and Open Graph
-  images for the home page and each bot (`opengraph-image.tsx`).
+- **Sharing:** `sitemap.xml` (listed bots and apps), `robots.txt`, and Open
+  Graph images for the home page, each bot and each app
+  (`opengraph-image.tsx`).
+
+## Apps
+
+"Apps" is Grok Bot's name for plugins: bundles of MCP servers and skills a
+bot can use. The Apps tab (`/?tab=apps`) and app pages (`/apps/<slug>`) show
+cursor.directory's plugins, the same rows in the shared `plugins` table, so a
+plugin submitted on either site appears on both.
+
+- **Which plugins:** `list_grok_bot_apps()` applies Grok Bot's own rule:
+  active plugins with MCP servers or skills, or with none of the parts only
+  Cursor runs (rules, hooks, commands, subagents, LSP servers), minus those
+  marked `unavailable_in = {grok_bot}`. `worksInGrokBot` in
+  `packages/plugins/src/apps.ts` is the same rule in TypeScript.
+- **Official apps** come from the Cursor Marketplace. cursor.directory's
+  daily cron (`/api/cron/sync-marketplace-plugins`, or
+  `bun run seed:marketplace-plugins` in `apps/cursor`) imports the public
+  `ListMarketplacePlugins` catalog into `plugins` (`discovery_source =
+  'marketplace'`, `marketplace_plugin_id` set) and keeps it in sync. They
+  carry an Official badge; **Add to Grok Bot** opens
+  `x.ai/bot/plugin/<id>`, which opens the app in Grok Bot. The catalog
+  doesn't include MCP configs, so their component rows hold names only.
+- **Community apps** are every other plugin Grok Bot can use. There's no
+  one-click install for them, so their page shows each MCP server's settings
+  (URL, or command and arguments) to add as a custom MCP server in Grok Bot.
+- **Submitting** (`/submit?kind=app`) takes a GitHub repository (parsed like
+  cursor.directory does) or a remote MCP server URL, and creates the same
+  plugin row cursor.directory's form creates (`discovery_source =
+  'grok-bot'`). cursor.directory's security scan reviews it: safe plugins
+  are listed on both sites, flagged ones wait in cursor.directory's
+  `/admin/plugins` queue. The scan runs on cursor.directory's drain cron,
+  whichever site queued it.
+- **Shared code:** plugin types, the GitHub parser, `insertPlugin`, the scan
+  queue and the marketplace import live in `packages/plugins`
+  (`@directories/plugins`), used by both apps.
+- **No ranking:** apps list official first, then community, alphabetically,
+  with the marketplace's categories as filters. Installs aren't counted.
 
 ## Local development
 
@@ -60,7 +97,8 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
 2. `cp .env.example .env` and fill in the local keys `supabase status` prints.
    Set `GROK_BOT_DEV_LOGIN=1` to get a "Local dev sign-in" button, since
    GitHub and Google OAuth aren't configured locally.
-3. Seed from the official marketplace: `bun run seed:marketplace`.
+3. Seed from the official marketplace: `bun run seed:marketplace` (bots),
+   and `bun run seed:marketplace-plugins` from `apps/cursor` (apps).
 4. `bun dev` → http://localhost:3001.
 5. To review submissions, make the dev user an admin:
    `insert into public.admins (user_id, note) select id, 'local dev' from auth.users where email = 'dev@grok-bot.local';`
@@ -96,11 +134,15 @@ a real shared bot from x.ai.
   button. cursor.directory is unaffected (it has no X button).
 - **Vercel:** a new project with root directory `apps/grok-bot`, the domain,
   the env vars in `.env.example`, and the Firewall rules listed there.
-- **Database:** apply the three migrations (`20261030120000_grok_bots.sql`,
+- **Database:** apply the four migrations (`20261030120000_grok_bots.sql`,
   `20261030130000_grok_bot_ai_review.sql`,
-  `20261030140000_grok_bot_admin_edits.sql`)
-  to the shared project and run
-  `seed:marketplace` once.
+  `20261030140000_grok_bot_admin_edits.sql`,
+  `20261110120000_marketplace_plugins.sql`)
+  to the shared project, run `seed:marketplace` once, and run
+  cursor.directory's `seed:marketplace-plugins` once (its daily cron keeps
+  apps in sync after that).
+- **Apps install path:** confirm the setup steps community app pages give
+  for adding a custom MCP server in Grok Bot.
 - **Secrets:** `XAI_API_KEY` (AI review) and `CRON_SECRET` (review retries)
   in the Vercel project.
 - **Grok Bot API:** confirm with the Grok Bot backend owners that the directory
