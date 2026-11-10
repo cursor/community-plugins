@@ -1,6 +1,7 @@
 import "server-only";
 
-import { worksInGrokBot } from "@directories/plugins/apps";
+import { appCategories, worksInGrokBot } from "@directories/plugins/apps";
+import { type McpSetup, parseMcpSetup } from "@/lib/mcp-config";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**
@@ -32,8 +33,10 @@ export type AppComponent = {
   name: string;
   slug: string;
   description: string | null;
-  /** The MCP server's config as cursor.directory stores it (JSON). */
+  /** The MCP server's config (JSON) or the skill's SKILL.md body. */
   content: string | null;
+  /** How to add the MCP server, when its stored config can be read. */
+  setup: McpSetup | null;
   /** Tools a remote server listed when it was submitted. */
   tools: { name: string; description: string }[];
   /** The server asked for an OAuth sign-in when it was submitted. */
@@ -85,7 +88,7 @@ function toApp(row: AppRow): DirectoryApp {
 /** Official apps first, then community apps, alphabetical within each. */
 export async function listApps(): Promise<DirectoryApp[]> {
   const admin = await createAdminClient();
-  const { data, error } = await admin.rpc("list_grok_bot_apps");
+  const { data, error } = await admin.rpc("list_grok_bot_apps_json");
   if (error) throw error;
   return ((data ?? []) as AppRow[])
     .map(toApp)
@@ -115,7 +118,7 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
   const { data } = await admin
     .from("plugins")
     .select(
-      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, created_at, active, unavailable_in, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
+      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, active, unavailable_in, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -135,7 +138,7 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
   if (!worksInGrokBot(components.map((c) => c.type))) return null;
   const app = toApp({
     ...data,
-    categories: data.marketplace_categories,
+    categories: appCategories(data.marketplace_categories, data.app_category),
     mcp_servers: components
       .filter((c) => c.type === "mcp_server")
       .map((c) => c.name),
@@ -151,6 +154,8 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
         slug,
         description,
         content,
+        setup:
+          type === "mcp_server" ? parseMcpSetup(name, content, metadata) : null,
         tools: toolsFrom(metadata?.tools),
         signIn: metadata?.auth === "oauth",
       })),

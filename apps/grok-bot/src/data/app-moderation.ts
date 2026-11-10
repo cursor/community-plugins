@@ -1,6 +1,5 @@
 import "server-only";
 
-import { worksInGrokBot } from "@directories/plugins/apps";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import type { ModerationEvent } from "./bots";
 
@@ -71,42 +70,50 @@ type Row = {
 // (the same threshold as cursor.directory's recover-stuck-scans cron).
 const STUCK_AFTER_MS = 15 * 60 * 1000;
 
-async function fetchRows(tab: AppAdminTab): Promise<Row[]> {
-  const admin = await createAdminClient();
-  let query = admin.from("plugins").select(COLUMNS);
-  if (tab === "queue") {
-    // Waiting on a person or a scan: flagged, failed, or still scanning.
-    query = query
-      .eq("active", false)
-      .eq("permanently_blocked", false)
-      .in("scan_status", ["flagged", "error", "pending", "scanning"]);
-  } else if (tab === "listed") {
-    // Official apps follow the marketplace sync; community ones are ours.
-    query = query.eq("active", true).is("marketplace_plugin_id", null);
-  } else {
-    query = query
-      .eq("active", false)
-      .or("permanently_blocked.eq.true,scan_status.in.(safe,unscanned)");
-  }
-  const { data, error } = await query
-    .order("updated_at", { ascending: false })
-    .limit(500);
-  if (error) throw error;
-  return ((data ?? []) as Row[]).filter(
-    (r) =>
-      !(r.unavailable_in ?? []).includes("grok_bot") &&
-      worksInGrokBot((r.plugin_components ?? []).map((c) => c.type)),
-  );
-}
+export const ADMIN_PAGE_SIZE = 25;
 
-const QUEUE_RANK: Record<string, number> = {
-  flagged: 0,
-  error: 1,
-  stuck: 2,
-  scanning: 3,
-  pending: 4,
-};
-const SEVERITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+/**
+ * One page of a tab, in display order, and the tab's total. The tabs
+ * (Review queue: flagged, failed or still scanning; Listed: live community
+ * apps, since official ones follow the marketplace sync; Removed), the
+ * search and the order are `list_grok_bot_admin_apps()` in SQL.
+ */
+async function fetchPage(
+  tab: AppAdminTab,
+  query: string,
+  page: number,
+): Promise<{ rows: Row[]; total: number }> {
+  const admin = await createAdminClient();
+  const ids = async (offset: number, limit: number) => {
+    const { data, error } = await admin.rpc("list_grok_bot_admin_apps", {
+      p_tab: tab,
+      p_query: query || null,
+      p_limit: limit,
+      p_offset: offset,
+    });
+    if (error) throw error;
+    return (data ?? []) as { id: string; total: number }[];
+  };
+  const order = await ids((page - 1) * ADMIN_PAGE_SIZE, ADMIN_PAGE_SIZE);
+  // Past the last page there are no rows to carry the total.
+  const total =
+    order[0]?.total ?? (page > 1 ? ((await ids(0, 1))[0]?.total ?? 0) : 0);
+  if (order.length === 0) return { rows: [], total };
+
+  const { data, error } = await admin
+    .from("plugins")
+    .select(COLUMNS)
+    .in(
+      "id",
+      order.map((r) => r.id),
+    );
+  if (error) throw error;
+  const byId = new Map(((data ?? []) as Row[]).map((r) => [r.id, r]));
+  return {
+    rows: order.flatMap((r) => byId.get(r.id) ?? []),
+    total,
+  };
+}
 
 /** Flagged and failed scans first, then stuck ones, then scans in progress. */
 export function queueStatus(app: AdminApp): string {
@@ -117,8 +124,11 @@ export function queueStatus(app: AdminApp): string {
   return app.scanStatus;
 }
 
-export async function listAppsForAdmin(tab: AppAdminTab): Promise<AdminApp[]> {
-  const rows = await fetchRows(tab);
+export async function listAppsForAdmin(
+  tab: AppAdminTab,
+  { query = "", page = 1 }: { query?: string; page?: number } = {},
+): Promise<{ apps: AdminApp[]; total: number }> {
+  const { rows, total } = await fetchPage(tab, query, page);
   const ownerIds = [
     ...new Set(rows.map((r) => r.owner_id).filter((id): id is string => !!id)),
   ];
@@ -157,25 +167,20 @@ export async function listAppsForAdmin(tab: AppAdminTab): Promise<AdminApp[]> {
         .length,
     }),
   );
-  if (tab !== "queue") return apps;
-  return apps.sort(
-    (a, b) =>
-      (QUEUE_RANK[queueStatus(a)] ?? 9) - (QUEUE_RANK[queueStatus(b)] ?? 9) ||
-      (a.flagSeverity ? SEVERITY_RANK[a.flagSeverity] : 3) -
-        (b.flagSeverity ? SEVERITY_RANK[b.flagSeverity] : 3),
-  );
+  return { apps, total };
 }
 
 export async function countAppsForAdmin(): Promise<
   Record<AppAdminTab, number>
 > {
-  const [queue, listed, removed] = await Promise.all(
-    (["queue", "listed", "removed"] as const).map((t) => fetchRows(t)),
-  );
+  const admin = await createAdminClient();
+  const { data, error } = await admin.rpc("count_grok_bot_admin_apps");
+  if (error) throw error;
+  const counts = (data?.[0] ?? {}) as Partial<Record<AppAdminTab, number>>;
   return {
-    queue: queue.length,
-    listed: listed.length,
-    removed: removed.length,
+    queue: Number(counts.queue ?? 0),
+    listed: Number(counts.listed ?? 0),
+    removed: Number(counts.removed ?? 0),
   };
 }
 

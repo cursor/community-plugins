@@ -82,6 +82,20 @@ test.describe("apps", () => {
     await expect(page.getByText("zephyr-notes")).toBeVisible();
   });
 
+  test("an older community app adds from the config in its install link", async ({
+    page,
+  }) => {
+    await page.goto(`/apps/${APP_FIXTURES.legacy.slug}`);
+    const add = page.getByRole("link", { name: "Add to Grok Bot" });
+    const text =
+      new URL((await add.getAttribute("href")) ?? "").searchParams.get(
+        "text",
+      ) ?? "";
+    expect(text).toBe(
+      `Add the local MCP server "zephyr-legacy" that runs: npx -y zephyr-legacy-mcp. It needs the ZEPHYR_API_KEY environment variable; ask me for the value.`,
+    );
+  });
+
   test("serves a community app's skill as SKILL.md", async ({ request }) => {
     const res = await request.get(
       `/apps/${APP_FIXTURES.community.slug}/skills/zephyr-notes/SKILL.md`,

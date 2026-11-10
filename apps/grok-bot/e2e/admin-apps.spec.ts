@@ -54,8 +54,14 @@ test.describe("admin: apps", () => {
     await expect(flagged).toContainText(APP_FIXTURES.flagged.summary);
     await expect(flagged).toContainText("submitted by Local Dev");
 
+    // The note box only opens for Block, and Block won't go through empty.
+    await expect(flagged.getByLabel("Block note")).toHaveCount(0);
+    await flagged.getByRole("button", { name: "Block" }).click();
+    await expect(flagged.getByLabel("Block note")).toBeFocused();
     await flagged.getByRole("button", { name: "Block" }).click();
     await expect(flagged).toContainText("Add a note saying why it’s blocked.");
+    await flagged.getByRole("button", { name: "Cancel" }).click();
+    await expect(flagged.getByLabel("Block note")).toHaveCount(0);
 
     await flagged.getByRole("button", { name: "Approve" }).click();
     await expect(flagged).toHaveCount(0);
@@ -70,21 +76,14 @@ test.describe("admin: apps", () => {
     expect(res?.status()).toBe(200);
   });
 
-  test("listed: unpublish with a note, then relist", async ({ page }) => {
+  test("listed: unpublish, then relist", async ({ page }) => {
     await signIn(page, "/admin?kind=apps&tab=listed");
     const listed = card(page, APP_FIXTURES.community.name);
-    await listed
-      .getByLabel("Moderation note")
-      .fill("Server is down for maintenance.");
     await listed.getByRole("button", { name: "Unpublish" }).click();
     await expect(listed).toHaveCount(0);
 
     await page.getByRole("tab", { name: /^Removed/ }).click();
     const removed = card(page, APP_FIXTURES.community.name);
-    await removed.getByTestId("history").click();
-    await expect(removed.getByTestId("history")).toContainText(
-      "Server is down for maintenance.",
-    );
     await removed.getByRole("button", { name: "Relist" }).click();
     await expect(removed).toHaveCount(0);
 

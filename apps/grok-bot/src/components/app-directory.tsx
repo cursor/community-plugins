@@ -166,18 +166,50 @@ export function AppDirectory({ apps }: { apps: DirectoryApp[] }) {
         ].map(
           ([title, list, id]) =>
             list.length > 0 && (
-              <div className="section" key={id} data-testid={id}>
-                <div className="section-head">
-                  <h2>{searching ? `${title} matching “${query}”` : title}</h2>
-                  <span className="muted section-count">{list.length}</span>
-                </div>
-                {list.map((app) => (
-                  <AppRow key={app.id} app={app} />
-                ))}
-              </div>
+              <AppSection
+                // A new search or category starts from the first page.
+                key={`${id}:${query}:${category}`}
+                id={id}
+                title={searching ? `${title} matching “${query}”` : title}
+                apps={list}
+              />
             ),
         )
       )}
     </>
+  );
+}
+
+const PAGE_SIZE = 60;
+
+function AppSection({
+  id,
+  title,
+  apps,
+}: {
+  id: string;
+  title: string;
+  apps: DirectoryApp[];
+}) {
+  const [shown, setShown] = useState(PAGE_SIZE);
+  return (
+    <div className="section" data-testid={id}>
+      <div className="section-head">
+        <h2>{title}</h2>
+        <span className="muted section-count">{apps.length}</span>
+      </div>
+      {apps.slice(0, shown).map((app) => (
+        <AppRow key={app.id} app={app} />
+      ))}
+      {apps.length > shown && (
+        <button
+          type="button"
+          className="btn btn-gray show-more"
+          onClick={() => setShown((n) => n + PAGE_SIZE)}
+        >
+          Show more ({apps.length - shown} more)
+        </button>
+      )}
+    </div>
   );
 }

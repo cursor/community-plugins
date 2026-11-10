@@ -49,6 +49,8 @@ export function AppReviewCard({
 }) {
   const router = useRouter();
   const [note, setNote] = useState("");
+  // Blocking needs a note, so Block first opens the note box.
+  const [blocking, setBlocking] = useState(false);
   const [busy, setBusy] = useState<AppModeration | null>(null);
   const [error, setError] = useState<string | null>(null);
   const contents = appContents(app.mcpServers, app.skills);
@@ -75,6 +77,7 @@ export function AppReviewCard({
       return;
     }
     setNote("");
+    setBlocking(false);
     router.refresh();
   }
 
@@ -131,28 +134,59 @@ export function AppReviewCard({
           </span>
         </div>
         <ScanPanel app={app} status={status} />
-        <textarea
-          placeholder="Note (required to block; shown in the history)"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          aria-label="Moderation note"
-        />
+        {blocking && (
+          <textarea
+            // biome-ignore lint/a11y/noAutofocus: opened by clicking Block, to write its note
+            autoFocus
+            placeholder="Why is it blocked? (shown in the history)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label="Block note"
+          />
+        )}
         <div className="controls">
-          {ACTIONS[tab].map(([action, label, cls]) => (
-            <button
-              key={action}
-              type="button"
-              className={cls}
-              disabled={
-                !!busy ||
-                (action === "rescan" &&
-                  (status === "scanning" || status === "pending"))
-              }
-              onClick={() => act(action)}
-            >
-              {busy === action ? BUSY[action] : label}
-            </button>
-          ))}
+          {blocking ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={!!busy}
+                onClick={() => act("block")}
+              >
+                {busy === "block" ? BUSY.block : "Block"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline"
+                disabled={!!busy}
+                onClick={() => {
+                  setBlocking(false);
+                  setNote("");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            ACTIONS[tab].map(([action, label, cls]) => (
+              <button
+                key={action}
+                type="button"
+                className={cls}
+                disabled={
+                  !!busy ||
+                  (action === "rescan" &&
+                    (status === "scanning" || status === "pending"))
+                }
+                onClick={() =>
+                  action === "block" ? setBlocking(true) : act(action)
+                }
+              >
+                {busy === action ? BUSY[action] : label}
+              </button>
+            ))
+          )}
           {error && (
             <span className="form-error" style={{ margin: 0 }}>
               {error}

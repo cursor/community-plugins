@@ -11,7 +11,7 @@ const nextConfig = {
     root: resolve(__dirname, "../.."),
   },
   transpilePackages: ["@directories/plugins"],
-  serverExternalPackages: ["@cursor/sdk"],
+  serverExternalPackages: ["@xai-official/sdk"],
   headers: async () => {
     return [
       {

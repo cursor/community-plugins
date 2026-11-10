@@ -847,6 +847,74 @@ img {
 .subs-page {
   max-width: 760px;
 }
+
+.show-more {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* Admin: Bots/Apps is the section switch; the status tabs under it are a
+   second level, so they're underlined text rather than another pill. */
+.admin-kind {
+  margin-bottom: 20px;
+}
+.admin-kind-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.admin-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.admin-tabs a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 15px;
+  transition: color 150ms ease;
+}
+.admin-tabs a:hover {
+  color: var(--fg);
+}
+.admin-tabs a.on {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+.admin-search {
+  margin-bottom: 20px;
+}
+.admin-pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  font-size: 14px;
+}
+.admin-pager > :last-child {
+  justify-self: end;
+}
+.admin-tab-count {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .subs-head {
   display: flex;
   align-items: flex-end;

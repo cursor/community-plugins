@@ -116,6 +116,12 @@ export const APP_FIXTURES = {
     description: "A community app with a remote MCP server and a skill.",
     serverUrl: "https://mcp.example.com/zephyr",
   },
+  // An older listing: no content, the setup only in its Cursor install link.
+  legacy: {
+    slug: "e2e-app-legacy",
+    name: "Zephyr App Legacy",
+    description: "A community app from before servers stored their config.",
+  },
   flagged: {
     slug: "e2e-app-flagged",
     name: "Zephyr App Flagged",
@@ -183,6 +189,7 @@ async function seedApps(owner: string) {
         scan_status: "unscanned",
       }),
       plugin(APP_FIXTURES.community, { owner_id: owner }),
+      plugin(APP_FIXTURES.legacy, {}),
       plugin(APP_FIXTURES.flagged, {
         owner_id: owner,
         active: false,
@@ -244,6 +251,21 @@ async function seedApps(owner: string) {
           slug: "zephyr-notes",
           description: "Writes meeting notes.",
           content: "Write meeting notes from the transcript the user shares.",
+        },
+        {
+          ...server(APP_FIXTURES.legacy.slug, "zephyr-legacy", null),
+          metadata: {
+            link: "https://github.com/example/zephyr-legacy",
+            mcp_link: `cursor://anysphere.cursor-deeplink/mcp/install?name=zephyr-legacy&config=${encodeURIComponent(
+              Buffer.from(
+                JSON.stringify({
+                  command: "npx",
+                  args: ["-y", "zephyr-legacy-mcp"],
+                  env: { ZEPHYR_API_KEY: "<your key>" },
+                }),
+              ).toString("base64"),
+            )}`,
+          },
         },
         server(
           APP_FIXTURES.flagged.slug,

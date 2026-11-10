@@ -16,7 +16,6 @@ import {
   addSkillSentence,
   grokBotPromptUrl,
 } from "@/lib/grok-bot-prompt";
-import { parseMcpSetup } from "@/lib/mcp-config";
 import { siteUrl } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
@@ -73,8 +72,7 @@ export default async function AppPage({ params }: Props) {
                 `${siteUrl()}/apps/${app.slug}/skills/${c.slug}/SKILL.md`,
               )
             : null;
-        const setup = parseMcpSetup(c.name, c.content);
-        return setup ? addServerSentence(c.name, setup) : null;
+        return c.setup ? addServerSentence(c.name, c.setup) : null;
       });
   const addAll =
     sentences.length > 0 && sentences.every((s) => s !== null)
