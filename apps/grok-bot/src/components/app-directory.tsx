@@ -65,8 +65,8 @@ export function AppDirectory({ apps }: { apps: DirectoryApp[] }) {
   );
 
   const searching = query.length >= 2;
-  // Search results keep Fuse's relevance order; otherwise the list is
-  // already official first, then alphabetical.
+  // Search results keep Fuse's relevance order; otherwise the list keeps the
+  // order it came in (official first, each group shuffled per visit).
   const matched = searching ? fuse.search(query).map((r) => r.item) : apps;
   const categories = APP_CATEGORIES.filter((c) =>
     apps.some((a) => a.categories.includes(c.id)),

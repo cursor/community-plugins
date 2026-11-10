@@ -53,14 +53,25 @@ test.describe("apps", () => {
     );
   });
 
-  test("a community app shows how to set up its MCP server", async ({
+  test("a community app adds to Grok Bot through a prefilled message", async ({
     page,
   }) => {
     await page.goto(`/apps/${APP_FIXTURES.community.slug}`);
     await expect(page.getByTestId("official-badge")).toHaveCount(0);
-    const server = page.getByTestId("setup-server");
-    await expect(server).toContainText("zephyr-community");
-    await expect(server).toContainText(APP_FIXTURES.community.serverUrl);
+    // Add opens Grok Bot with a message for its AddMcpServer tool.
+    const add = page.getByRole("link", { name: "Add to Grok Bot" });
+    const href = new URL((await add.getAttribute("href")) ?? "");
+    expect(href.origin + href.pathname).toBe(
+      "https://cursor.com/grok-bot/link/v1/prompt",
+    );
+    expect(href.searchParams.get("text")).toBe(
+      `Add the MCP server ${APP_FIXTURES.community.serverUrl} (call it "zephyr-community").`,
+    );
+    // What's inside lists its server (with the tools it reported and its
+    // sign-in) and its skill.
+    await expect(page.getByText("zephyr-community")).toBeVisible();
+    await expect(page.getByText("zephyr_search")).toBeVisible();
+    await expect(page.getByTestId("requires-sign-in")).toBeVisible();
     await expect(page.getByText("zephyr-notes")).toBeVisible();
   });
 
@@ -93,7 +104,7 @@ test.describe("apps", () => {
     await expect(card(APP_FIXTURES.cursorOnly.name)).toHaveCount(0);
   });
 
-  test("the app form checks a pasted MCP server URL before submitting", async ({
+  test("the app form only accepts a URL that answers as an MCP server", async ({
     page,
   }) => {
     await signIn(page, "/submit?kind=app");
@@ -101,15 +112,41 @@ test.describe("apps", () => {
       page.getByRole("heading", { name: "Submit an app" }),
     ).toBeVisible();
     const submit = page.getByRole("button", { name: "Submit for review" });
+    // A private address is refused before anything is fetched.
     await page
       .getByLabel("GitHub repository or MCP server URL")
-      .fill("https://mcp.example.com/another");
-    await expect(submit).toBeDisabled();
+      .fill("https://127.0.0.1/mcp");
+    await expect(
+      page.getByText("Use the server’s public https://"),
+    ).toBeVisible();
     await page.getByLabel("Name").fill("Zephyr Draft");
     await page
       .getByLabel("Description")
       .fill("Checks the form without submitting it.");
-    await expect(page.getByTestId("app-preview")).toContainText("Zephyr Draft");
-    await expect(submit).toBeEnabled();
+    await expect(submit).toBeDisabled();
+  });
+
+  // Connects to a real public MCP server, so it only runs with E2E_NETWORK=1.
+  // It previews the server and stops before submitting.
+  test("pasting an MCP server URL fills in what the server reports", async ({
+    page,
+  }) => {
+    test.skip(!process.env.E2E_NETWORK, "needs network (E2E_NETWORK=1)");
+    await signIn(page, "/submit?kind=app");
+    await page
+      .getByLabel("GitHub repository or MCP server URL")
+      .fill("https://mcp.deepwiki.com/mcp");
+    await expect(page.getByLabel("Name")).toHaveValue("DeepWiki", {
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("app-preview-meta")).toContainText(
+      "ask_wiki_question",
+    );
+    await page
+      .getByLabel("Description")
+      .fill("Ask questions about any public GitHub repository.");
+    await expect(
+      page.getByRole("button", { name: "Submit for review" }),
+    ).toBeEnabled();
   });
 });

@@ -8,6 +8,12 @@ import {
   parseGitHubUrl,
 } from "@directories/plugins/github";
 import { InsertPluginError, insertPlugin } from "@directories/plugins/insert";
+import {
+  inspectMcpServer,
+  type McpTool,
+  type SuggestedDetails,
+  suggestDetails,
+} from "@directories/plugins/mcp-inspect";
 import { slugify } from "@directories/plugins/slug";
 import { revalidatePath } from "next/cache";
 import { getViewer } from "@/lib/auth";
@@ -31,16 +37,27 @@ export type RepoPreview =
       /** Grok Bot can use it: it has MCP servers or skills. */
       usable: boolean;
       existing: { slug: string; listed: boolean; yours: boolean } | null;
+      stars: number | null;
+      archived: boolean;
+      pushedAt: string | null;
     }
   | {
       ok: false;
-      error: "invalid" | "unreadable" | "no_components" | "unavailable";
+      error:
+        | "invalid"
+        | "unreadable"
+        | "no_components"
+        | "github_busy"
+        | "unavailable";
     };
 
-function parseError(err: unknown): "invalid" | "unreadable" | "no_components" {
+function parseError(
+  err: unknown,
+): "invalid" | "unreadable" | "no_components" | "github_busy" {
   if (err instanceof GitHubParseError) {
     if (err.code === "invalid_url") return "invalid";
     if (err.code === "no_components") return "no_components";
+    if (err.code === "rate_limited") return "github_busy";
     return "unreadable";
   }
   throw err;
@@ -83,6 +100,9 @@ export async function previewAppRepo(url: string): Promise<RepoPreview> {
     repository: parsed.repository,
     parts,
     usable: worksInGrokBot(parts.map((p) => p.type)),
+    stars: parsed.stars ?? null,
+    archived: parsed.archived ?? false,
+    pushedAt: parsed.pushed_at ?? null,
     existing: row
       ? {
           slug: row.slug,
@@ -90,6 +110,45 @@ export async function previewAppRepo(url: string): Promise<RepoPreview> {
           yours: !!viewer && row.owner_id === viewer.id,
         }
       : null,
+  };
+}
+
+export type ServerPreview =
+  | {
+      ok: true;
+      /** Name, description, website and logo the server or its site report. */
+      suggested: SuggestedDetails;
+      /** Null when the server lists them only after sign-in. */
+      tools: McpTool[] | null;
+      signIn: boolean;
+    }
+  | {
+      ok: false;
+      error: "signed_out" | "invalid_server" | "unreachable" | "not_mcp";
+    };
+
+const INSPECT_ERRORS = {
+  invalid: "invalid_server",
+  blocked: "invalid_server",
+  unreachable: "unreachable",
+  not_mcp: "not_mcp",
+} as const;
+
+/**
+ * Connects to a pasted MCP server the way Grok Bot would, for the form's
+ * preview and prefill. Signed-in members only: it fetches the address they
+ * give (with mcp-inspect's guards).
+ */
+export async function previewMcpServer(url: string): Promise<ServerPreview> {
+  if (!(await getViewer())) return { ok: false, error: "signed_out" };
+  const inspection = await inspectMcpServer(String(url ?? ""));
+  if (!inspection.ok)
+    return { ok: false, error: INSPECT_ERRORS[inspection.error] };
+  return {
+    ok: true,
+    suggested: suggestDetails(inspection),
+    tools: inspection.tools,
+    signIn: inspection.auth === "oauth",
   };
 }
 
@@ -113,9 +172,12 @@ export type SubmitAppResult =
         | "rate_limited"
         | "invalid"
         | "invalid_server"
+        | "unreachable"
+        | "not_mcp"
         | "invalid_details"
         | "unreadable"
         | "no_components"
+        | "github_busy"
         | "not_usable"
         | "duplicate";
     };
@@ -186,6 +248,12 @@ export async function submitApp(
     ) {
       return { ok: false, error: "invalid_details" };
     }
+    // Connect again server-side; never trust what the form showed. Only real
+    // MCP servers are listed. What it reports goes on the component, where
+    // the app page and cursor.directory's security scan read it.
+    const inspection = await inspectMcpServer(url);
+    if (!inspection.ok)
+      return { ok: false, error: INSPECT_ERRORS[inspection.error] };
     const serverName = slugify(name) || "server";
     plugin = {
       name,
@@ -199,7 +267,19 @@ export async function submitApp(
           name: serverName,
           description: `MCP server: ${name}`,
           content: JSON.stringify({ url }, null, 2),
-          metadata: { url },
+          metadata: {
+            url,
+            auth: inspection.auth,
+            ...(inspection.server.name || inspection.server.version
+              ? {
+                  server: {
+                    name: inspection.server.name,
+                    version: inspection.server.version,
+                  },
+                }
+              : {}),
+            ...(inspection.tools ? { tools: inspection.tools } : {}),
+          },
         },
       ],
     };

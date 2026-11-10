@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   previewAppRepo,
+  previewMcpServer,
   type RepoPreview,
+  type ServerPreview,
   type SubmitAppInput,
   submitApp,
 } from "@/actions/submit-app";
 import { appContents } from "@/lib/app-categories";
+import { formatCount, formatRelativeDate } from "@/lib/format";
 import { AppLogo } from "./app-logo";
 import { BotRig } from "./bot-rig";
 
@@ -23,7 +26,13 @@ const ERRORS: Record<string, string> = {
   not_usable:
     "Grok Bot can’t use this plugin: it has no MCP servers or skills, only parts that run in Cursor.",
   unavailable: "Couldn’t reach GitHub. Try again in a moment.",
-  invalid_server: "The MCP server URL must start with https://.",
+  github_busy:
+    "GitHub is rate-limiting us right now, so we can’t read repositories. Try again in a few minutes.",
+  invalid_server: "Use the server’s public https:// address.",
+  unreachable:
+    "Couldn’t connect to that server. Check the URL and that it’s online.",
+  not_mcp:
+    "That URL didn’t answer as an MCP server. Use its MCP endpoint, often ending in /mcp.",
   invalid_details:
     "Add a name (2–80 characters) and a description (at least 10 characters). Logo and website must be https:// links.",
   duplicate:
@@ -48,22 +57,37 @@ function kindOf(link: string): Kind {
   return url.protocol === "https:" ? "server" : "invalid";
 }
 
-type RepoState =
+type Lookup<T> =
   | { phase: "idle" }
   | { phase: "loading" }
-  | { phase: "done"; result: RepoPreview };
+  | { phase: "done"; result: T };
+
+type Details = {
+  name: string;
+  description: string;
+  logo: string;
+  homepage: string;
+};
+const FIELDS = ["name", "description", "logo", "homepage"] as const;
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export function AppSubmitForm() {
   const router = useRouter();
   const [link, setLink] = useState("");
   const [touched, setTouched] = useState(false);
-  const [repo, setRepo] = useState<RepoState>({ phase: "idle" });
-  const [details, setDetails] = useState({
+  const [repo, setRepo] = useState<Lookup<RepoPreview>>({ phase: "idle" });
+  const [server, setServer] = useState<Lookup<ServerPreview>>({
+    phase: "idle",
+  });
+  const [details, setDetails] = useState<Details>({
     name: "",
     description: "",
     logo: "",
     homepage: "",
   });
+  // Fields the member typed in; the server's suggestions never overwrite them.
+  const edited = useRef(new Set<keyof Details>());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const pasted = useRef(false);
@@ -71,23 +95,36 @@ export function AppSubmitForm() {
 
   useEffect(() => {
     setSubmitError(null);
-    if (kind !== "repo") return setRepo({ phase: "idle" });
-    setRepo({ phase: "loading" });
+    if (kind !== "repo") setRepo({ phase: "idle" });
+    if (kind !== "server") setServer({ phase: "idle" });
+    if (kind !== "repo" && kind !== "server") return;
+    const value = link.trim();
+    if (kind === "repo") setRepo({ phase: "loading" });
+    else setServer({ phase: "loading" });
     let cancelled = false;
     // Wait for typing to pause; a paste is already whole.
-    const delay = pasted.current ? 0 : 400;
+    const delay = pasted.current ? 0 : 500;
     pasted.current = false;
     const t = setTimeout(async () => {
-      try {
-        const result = await previewAppRepo(link.trim());
+      if (kind === "repo") {
+        const result = await previewAppRepo(value).catch(
+          (): RepoPreview => ({ ok: false, error: "unavailable" }),
+        );
         if (!cancelled) setRepo({ phase: "done", result });
-      } catch {
-        if (!cancelled)
-          setRepo({
-            phase: "done",
-            result: { ok: false, error: "unavailable" },
-          });
+        return;
       }
+      const result = await previewMcpServer(value).catch(
+        (): ServerPreview => ({ ok: false, error: "unreachable" }),
+      );
+      if (cancelled) return;
+      setServer({ phase: "done", result });
+      if (result.ok)
+        setDetails((d) => {
+          const next = { ...d };
+          for (const f of FIELDS)
+            if (!edited.current.has(f)) next[f] = result.suggested[f] ?? "";
+          return next;
+        });
     }, delay);
     return () => {
       cancelled = true;
@@ -95,18 +132,28 @@ export function AppSubmitForm() {
     };
   }, [link, kind]);
 
+  const setField = (field: keyof Details, value: string) => {
+    edited.current.add(field);
+    setDetails((d) => ({ ...d, [field]: value }));
+  };
+
   const preview = repo.phase === "done" && repo.result.ok ? repo.result : null;
+  const inspected =
+    server.phase === "done" && server.result.ok ? server.result : null;
   const existing = preview?.existing ?? null;
+  const loading = repo.phase === "loading" || server.phase === "loading";
   const linkError =
     kind === "invalid" && touched
       ? ERRORS.invalid
       : repo.phase === "done" && !repo.result.ok
         ? ERRORS[repo.result.error]
-        : preview && !preview.usable
-          ? ERRORS.not_usable
-          : null;
+        : server.phase === "done" && !server.result.ok
+          ? ERRORS[server.result.error]
+          : preview && !preview.usable
+            ? ERRORS.not_usable
+            : null;
   const serverReady =
-    kind === "server" &&
+    !!inspected &&
     details.name.trim().length >= 2 &&
     details.description.trim().length >= 10;
   const canSubmit =
@@ -150,6 +197,18 @@ export function AppSubmitForm() {
       parts.filter((p) => p.type === "skill").length,
     );
 
+  // What the server said about itself, for the preview's footer.
+  const serverMeta = inspected
+    ? inspected.signIn
+      ? "Requires sign-in"
+      : inspected.tools && inspected.tools.length > 0
+        ? `${plural(inspected.tools.length, "tool")}: ${inspected.tools
+            .slice(0, 3)
+            .map((t) => t.name)
+            .join(", ")}${inspected.tools.length > 3 ? ", …" : ""}`
+        : "MCP server"
+    : "MCP server";
+
   return (
     <form className="form" onSubmit={onSubmit} noValidate>
       <div className="field">
@@ -173,9 +232,9 @@ export function AppSubmitForm() {
             aria-invalid={!!linkError}
             aria-describedby="app-link-help"
           />
-          {repo.phase === "loading" && (
+          {loading && (
             <span className="link-state" data-testid="link-loading">
-              Reading repository…
+              {kind === "repo" ? "Reading repository…" : "Connecting…"}
             </span>
           )}
         </div>
@@ -205,7 +264,7 @@ export function AppSubmitForm() {
               value={details.name}
               maxLength={80}
               disabled={submitting}
-              onChange={(e) => setDetails({ ...details, name: e.target.value })}
+              onChange={(e) => setField("name", e.target.value)}
               placeholder="Acme"
             />
           </div>
@@ -217,9 +276,7 @@ export function AppSubmitForm() {
               maxLength={2000}
               value={details.description}
               disabled={submitting}
-              onChange={(e) =>
-                setDetails({ ...details, description: e.target.value })
-              }
+              onChange={(e) => setField("description", e.target.value)}
               placeholder="What your bots can do with it"
             />
           </div>
@@ -230,7 +287,7 @@ export function AppSubmitForm() {
               type="url"
               value={details.logo}
               disabled={submitting}
-              onChange={(e) => setDetails({ ...details, logo: e.target.value })}
+              onChange={(e) => setField("logo", e.target.value)}
               placeholder="https://…/logo.png"
             />
           </div>
@@ -241,9 +298,7 @@ export function AppSubmitForm() {
               type="url"
               value={details.homepage}
               disabled={submitting}
-              onChange={(e) =>
-                setDetails({ ...details, homepage: e.target.value })
-              }
+              onChange={(e) => setField("homepage", e.target.value)}
               placeholder="https://…"
             />
           </div>
@@ -288,22 +343,32 @@ export function AppSubmitForm() {
               </p>
             </div>
           </div>
-          <div className="meta">
-            <span>
-              {preview
-                ? counts(preview.parts) || "No MCP servers or skills"
-                : "1 MCP server"}
-            </span>
-            {preview && (
-              <span className="meta-link">
-                ·{" "}
-                <a
-                  href={preview.repository}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <code>{preview.repository.replace("https://", "")}</code>
-                </a>
+          <div className="meta" data-testid="app-preview-meta">
+            {preview ? (
+              <>
+                <span>
+                  {counts(preview.parts) || "No MCP servers or skills"}
+                </span>
+                {preview.stars !== null && (
+                  <span>· ★ {formatCount(preview.stars)}</span>
+                )}
+                {preview.pushedAt && (
+                  <span>· updated {formatRelativeDate(preview.pushedAt)}</span>
+                )}
+                <span className="meta-link">
+                  ·{" "}
+                  <a
+                    href={preview.repository}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <code>{preview.repository.replace("https://", "")}</code>
+                  </a>
+                </span>
+              </>
+            ) : (
+              <span className="meta-tools">
+                {server.phase === "loading" ? "Connecting…" : serverMeta}
               </span>
             )}
           </div>
@@ -321,6 +386,14 @@ export function AppSubmitForm() {
             outline
             className="outline-bot"
           />
+        </div>
+      )}
+
+      {preview?.archived && !existing && (
+        <div className="already" data-testid="archived-repo">
+          <span>
+            This repository is archived, so it may no longer be maintained.
+          </span>
         </div>
       )}
 

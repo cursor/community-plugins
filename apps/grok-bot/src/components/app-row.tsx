@@ -58,7 +58,7 @@ export function AppRow({ app }: { app: DirectoryApp }) {
             className="btn btn-gray btn-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            Set up
+            View
           </Link>
         )}
       </div>

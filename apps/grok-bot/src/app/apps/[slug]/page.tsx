@@ -4,21 +4,27 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppLogo } from "@/components/app-logo";
 import { AppRow } from "@/components/app-row";
-import { CopyButton } from "@/components/copy-button";
-import { type AppDetail, getApp, listApps } from "@/data/apps";
+import { getApp, listApps } from "@/data/apps";
 import {
   appCategoryLabel,
   appContents,
   primaryAppCategory,
 } from "@/lib/app-categories";
 import { formatRelativeDate } from "@/lib/format";
+import { addServerSentence, grokBotPromptUrl } from "@/lib/grok-bot-prompt";
 import { parseMcpSetup } from "@/lib/mcp-config";
 
 export const dynamic = "force-dynamic";
 
-const CURSOR_DIRECTORY_URL = "https://cursor.directory";
-
 type Props = { params: Promise<{ slug: string }> };
+
+const OPENS_GROK_BOT = "Opens Grok Bot to add this app";
+
+const titleCase = (text: string) =>
+  text.replace(
+    /(^|\s)(\p{Ll})/gu,
+    (_, space, letter) => space + letter.toUpperCase(),
+  );
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const app = await getApp((await params).slug);
@@ -50,6 +56,21 @@ export default async function AppPage({ params }: Props) {
         .slice(0, 3)
     : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
+  const servers = app.components
+    .filter((c) => c.type === "mcp_server")
+    .map((c) => ({ name: c.name, setup: parseMcpSetup(c.name, c.content) }));
+  // One message adding every server; only when all of them can be read, so
+  // the agent isn't left adding half an app.
+  const addAll =
+    !app.marketplaceId &&
+    servers.length > 0 &&
+    servers.every((s) => s.setup !== null)
+      ? grokBotPromptUrl(
+          servers
+            .map((s) => (s.setup ? addServerSentence(s.name, s.setup) : ""))
+            .join(" "),
+        )
+      : null;
 
   return (
     <div className="detail">
@@ -93,8 +114,8 @@ export default async function AppPage({ params }: Props) {
             {" · "}
           </>
         )}
-        {app.marketplaceId ? "Official app" : "Community app"}
-        {" · "}listed {formatRelativeDate(app.createdAt)}
+        {!app.marketplaceId && "Community App · "}
+        {titleCase(`listed ${formatRelativeDate(app.createdAt)}`)}
       </div>
       <p className="detail-desc">{app.description}</p>
       <div className="detail-actions">
@@ -103,15 +124,27 @@ export default async function AppPage({ params }: Props) {
             href={grokBotPluginUrl(app.marketplaceId)}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-lg"
+            className="btn btn-lg has-tooltip"
+            data-tooltip={OPENS_GROK_BOT}
             data-testid="app-add"
           >
             Add to Grok Bot
+            <span className="sr-only"> ({OPENS_GROK_BOT})</span>
           </a>
         ) : (
-          <a href="#set-up" className="btn btn-lg">
-            Set up in Grok Bot
-          </a>
+          addAll && (
+            <a
+              href={addAll}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-lg has-tooltip"
+              data-tooltip={OPENS_GROK_BOT}
+              data-testid="app-add"
+            >
+              Add to Grok Bot
+              <span className="sr-only"> ({OPENS_GROK_BOT})</span>
+            </a>
+          )
         )}
         {app.repository && (
           <a
@@ -151,26 +184,24 @@ export default async function AppPage({ params }: Props) {
                 {c.description && (
                   <span className="part-desc">{c.description}</span>
                 )}
+                {c.signIn && (
+                  <span className="part-note" data-testid="requires-sign-in">
+                    Requires signing in when you add it
+                  </span>
+                )}
+                {c.tools.length > 0 && (
+                  <ul className="part-tools" aria-label={`${c.name} tools`}>
+                    {c.tools.map((t) => (
+                      <li key={t.name} title={t.description || undefined}>
+                        {t.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
         </section>
-      )}
-
-      {!app.marketplaceId && <SetUp app={app} />}
-
-      {app.onCursorDirectory && (
-        <p className="app-elsewhere muted">
-          Also on{" "}
-          <a
-            href={`${CURSOR_DIRECTORY_URL}/plugins/${app.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            cursor.directory
-          </a>
-          , where it’s a Cursor plugin.
-        </p>
       )}
 
       {related.length > 0 && category && (
@@ -191,116 +222,5 @@ export default async function AppPage({ params }: Props) {
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Community apps aren't in the Cursor Marketplace, so there's no one-click
- * add: each MCP server is added to Grok Bot as a custom MCP server.
- */
-function SetUp({ app }: { app: AppDetail }) {
-  const servers = app.components.filter((c) => c.type === "mcp_server");
-  const skills = app.components.filter((c) => c.type === "skill");
-  return (
-    <section id="set-up" className="app-setup" aria-labelledby="setup-title">
-      <div className="section-head">
-        <h2 id="setup-title">Set up in Grok Bot</h2>
-      </div>
-      {servers.length > 0 && (
-        <p className="setup-lede">
-          In Grok Bot, add a custom MCP server for each server below, using its
-          settings. Values like API keys are yours to fill in.
-        </p>
-      )}
-      {servers.map((c) => {
-        const setup = parseMcpSetup(c.name, c.content);
-        return (
-          <div className="setup-server" key={c.name} data-testid="setup-server">
-            <h3>{c.name}</h3>
-            {setup?.kind === "remote" && (
-              <dl className="setup-fields">
-                <dt>Server URL</dt>
-                <dd>
-                  <code>{setup.url}</code>
-                  <CopyButton text={setup.url} />
-                </dd>
-                {setup.headers.length > 0 && (
-                  <>
-                    <dt>Headers</dt>
-                    <dd>
-                      <code>{setup.headers.join(", ")}</code>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            )}
-            {setup?.kind === "local" && (
-              <dl className="setup-fields">
-                <dt>Command</dt>
-                <dd>
-                  <code>{[setup.command, ...setup.args].join(" ")}</code>
-                  <CopyButton text={[setup.command, ...setup.args].join(" ")} />
-                </dd>
-                {setup.env.length > 0 && (
-                  <>
-                    <dt>Environment</dt>
-                    <dd>
-                      <code>{setup.env.join(", ")}</code>
-                    </dd>
-                  </>
-                )}
-              </dl>
-            )}
-            {setup ? (
-              <details className="setup-json">
-                <summary>Full config</summary>
-                <div className="code-block">
-                  <pre>{setup.json}</pre>
-                  <CopyButton text={setup.json} />
-                </div>
-              </details>
-            ) : (
-              <p className="muted">
-                This server’s settings aren’t listed here.
-                {app.repository && (
-                  <>
-                    {" "}
-                    See the{" "}
-                    <a
-                      href={app.repository}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      repository
-                    </a>{" "}
-                    for how to run it.
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-        );
-      })}
-      {skills.length > 0 && (
-        <p className="setup-lede">
-          {skills.length === 1 ? "Its skill ships" : "Its skills ship"} with the
-          app’s source
-          {app.repository ? (
-            <>
-              {" "}
-              in{" "}
-              <a
-                href={app.repository}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                its repository
-              </a>
-            </>
-          ) : null}
-          .
-        </p>
-      )}
-    </section>
   );
 }

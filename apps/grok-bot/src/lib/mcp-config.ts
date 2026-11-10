@@ -9,7 +9,6 @@ export type McpSetup =
       url: string;
       /** Header names; values are the user's own (keys, tokens). */
       headers: string[];
-      json: string;
     }
   | {
       kind: "local";
@@ -17,7 +16,6 @@ export type McpSetup =
       args: string[];
       /** Environment variable names the server expects. */
       env: string[];
-      json: string;
     };
 
 const record = (v: unknown): Record<string, unknown> | null =>
@@ -41,14 +39,12 @@ export function parseMcpSetup(
   if (servers) config = record(servers[name] ?? Object.values(servers)[0]);
   if (!config) return null;
 
-  const json = JSON.stringify({ mcpServers: { [name]: config } }, null, 2);
   const url = config.url ?? config.serverUrl;
   if (typeof url === "string" && url) {
     return {
       kind: "remote",
       url,
       headers: Object.keys(record(config.headers) ?? {}),
-      json,
     };
   }
   if (typeof config.command === "string" && config.command) {
@@ -57,7 +53,6 @@ export function parseMcpSetup(
       command: config.command,
       args: Array.isArray(config.args) ? config.args.map(String) : [],
       env: Object.keys(record(config.env) ?? {}),
-      json,
     };
   }
   return null;

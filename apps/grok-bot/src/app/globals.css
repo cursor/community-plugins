@@ -133,6 +133,53 @@ img {
   padding: 0 22px;
   font-size: 15px;
 }
+/* A short label above an element on hover or keyboard focus. Screen readers
+   get the same text from the element itself. */
+.has-tooltip {
+  position: relative;
+}
+/* .btn:hover fades the whole button, which would fade its tooltip too;
+   these buttons darken their background instead, to the same look. */
+.btn.has-tooltip:hover {
+  opacity: 1;
+}
+.btn.has-tooltip:not(.btn-gray):not(.btn-outline):hover {
+  background: color-mix(in oklab, var(--primary) 86%, var(--bg));
+}
+.has-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--seg-active);
+  color: var(--fg);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+.has-tooltip:hover::after,
+.has-tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition-delay: 300ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .has-tooltip::after {
+    transition: none;
+  }
+}
 .btn-sm {
   height: 30px;
   padding: 0 14px;
@@ -251,19 +298,25 @@ img {
     padding: 0 32px;
   }
 }
+/* The wordmark and "Directory" share one 20px text line, like the nav links,
+   so all of them sit on the same baseline in any font. */
 .logo-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: block;
   flex-shrink: 0;
-}
-.logo {
-  height: 16px;
-  width: auto;
-}
-.logo-sub {
   font-size: 15px;
   line-height: 20px;
+  white-space: nowrap;
+}
+.logo {
+  display: inline-block;
+  height: 16px;
+  width: auto;
+  margin-right: 8px;
+  /* The lockup's letters stand 2.1px above the image's bottom edge
+     (81.5 of its 94 units); drop it so they rest on the text baseline. */
+  vertical-align: -2.1px;
+}
+.logo-sub {
   color: var(--muted);
 }
 .nav {
@@ -458,6 +511,43 @@ img {
 }
 .hero-cta {
   margin-top: 24px;
+  gap: 0;
+}
+/* "a bot" / "an app" stacked in one slot; the words slide toward the tab
+   being switched to (Apps is right of Bots, so going there moves them up). */
+.cta-words {
+  display: inline-grid;
+  justify-items: start;
+  margin-left: 0.28em;
+}
+.cta-words[data-ready] {
+  transition: width 360ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.cta-word {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+.cta-words[data-ready] .cta-word {
+  transition:
+    transform 360ms cubic-bezier(0.34, 1.2, 0.64, 1),
+    opacity 220ms ease,
+    filter 260ms ease;
+}
+.cta-word[data-on="false"] {
+  opacity: 0;
+  filter: blur(3px);
+}
+.cta-word[data-word="bots"][data-on="false"] {
+  transform: translateY(-70%);
+}
+.cta-word[data-word="apps"][data-on="false"] {
+  transform: translateY(70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cta-words[data-ready],
+  .cta-words[data-ready] .cta-word {
+    transition: none;
+  }
 }
 .hero-copy a {
   color: var(--fg);
@@ -512,12 +602,21 @@ img {
   background: var(--pill-hover);
   color: var(--fg);
 }
+/* Inline chips in a balanced block, so wrapped rows come out even instead of
+   leaving one chip alone on the last row. */
 .cats {
-  justify-content: center;
-  margin: 20px auto 0;
+  display: block;
+  text-align: center;
+  text-wrap: balance;
+  margin: 16px auto 0;
+}
+.cats .chip {
+  margin: 4px;
+  vertical-align: top;
 }
 @media (max-width: 640px) {
   .cats {
+    display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
     justify-content: flex-start;
@@ -528,6 +627,7 @@ img {
   }
   .cats .chip {
     flex-shrink: 0;
+    margin: 0;
   }
 }
 
@@ -973,8 +1073,7 @@ img {
 .detail .app-logo {
   margin-bottom: 4px;
 }
-.app-parts,
-.app-setup {
+.app-parts {
   margin-top: 48px;
   max-width: 760px;
 }
@@ -1009,83 +1108,28 @@ img {
   font-size: 14px;
   color: var(--muted);
 }
-.setup-lede {
-  margin: 0 0 16px;
-  color: var(--muted);
-}
-.setup-lede a,
-.app-elsewhere a,
-.app-setup .muted a {
-  color: var(--fg);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.setup-server {
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--card);
-  margin-bottom: 12px;
-}
-.setup-server h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 500;
-  font-family: var(--font-mono);
-}
-.setup-fields {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 8px 12px;
-  margin: 0;
-  align-items: center;
-}
-.setup-fields dt {
+.part-note {
+  grid-column: 2;
+  margin-top: 6px;
   font-size: 13px;
   color: var(--muted);
 }
-.setup-fields dd {
-  margin: 0;
+.part-tools {
+  grid-column: 2;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 2px;
+  padding: 0;
+  list-style: none;
 }
-.setup-fields code,
-.code-block pre {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-.setup-fields code {
-  overflow-wrap: anywhere;
-}
-.setup-json {
-  margin-top: 12px;
-}
-.setup-json summary {
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--muted);
-}
-.code-block {
-  position: relative;
-  margin-top: 8px;
-}
-.code-block pre {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
+.part-tools li {
+  padding: 2px 8px;
+  border-radius: 999px;
   background: var(--bg);
   box-shadow: inset 0 0 0 1px var(--border);
-  overflow-x: auto;
-}
-.code-block .btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-.app-elsewhere {
-  margin-top: 40px;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 .subs-actions {
   display: flex;
@@ -1096,12 +1140,6 @@ img {
   justify-content: center;
   margin-bottom: 20px;
 }
-.share-howto-alt a {
-  color: var(--fg);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 /* Members, submit, login */
 .form {
   max-width: 600px;
@@ -1403,6 +1441,11 @@ img {
   color: var(--muted);
   white-space: nowrap;
   min-width: 0;
+}
+.submit-preview .meta-tools {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Only the share link gives way on a narrow line. */
 .submit-preview .meta-link {

@@ -8,8 +8,6 @@ import { requireViewer } from "@/lib/auth";
 
 export const metadata: Metadata = { title: "Submit" };
 
-const OFFICIAL_SUBMIT_URL = "https://x.ai/bot/marketplace/submit-a-plugin";
-
 type Props = { searchParams: Promise<{ link?: string; kind?: string }> };
 
 export default async function SubmitPage({ searchParams }: Props) {
@@ -42,21 +40,6 @@ export default async function SubmitPage({ searchParams }: Props) {
             security check before it’s listed, here and on cursor.directory.
           </p>
           <AppSubmitForm />
-          <section className="share-howto" aria-labelledby="official-title">
-            <h2 id="official-title">Want one-click install?</h2>
-            <p className="share-howto-alt">
-              Apps in the official marketplace install in Grok Bot with one
-              click.{" "}
-              <a
-                href={OFFICIAL_SUBMIT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Submit it to the marketplace
-              </a>{" "}
-              too; once it’s approved, its listing here becomes official.
-            </p>
-          </section>
         </>
       ) : (
         <>

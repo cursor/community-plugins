@@ -74,9 +74,15 @@ plugin submitted on either site appears on both.
   carry an Official badge; **Add to Grok Bot** opens
   `x.ai/bot/plugin/<id>`, which opens the app in Grok Bot. The catalog
   doesn't include MCP configs, so their component rows hold names only.
-- **Community apps** are every other plugin Grok Bot can use. There's no
-  one-click install for them, so their page shows each MCP server's settings
-  (URL, or command and arguments) to add as a custom MCP server in Grok Bot.
+- **Community apps** are every other plugin Grok Bot can use. Their **Add to
+  Grok Bot** opens Grok Bot's prefilled-message link
+  (`cursor.com/grok-bot/link/v1/prompt?text=…`, one line, at most 1,000
+  characters) with a message like "Add the MCP server https://… (call it
+  "x")". Grok Bot's AddMcpServer tool then asks the user to confirm before
+  adding it (`src/lib/grok-bot-prompt.ts`). The message names the headers or
+  environment variables a server needs but never their values, since the link
+  travels wherever it's pasted. Apps whose message can't be built (unreadable
+  config, over 1,000 characters, or skills only) show no Add button.
 - **Submitting** (`/submit?kind=app`) takes a GitHub repository (parsed like
   cursor.directory does) or a remote MCP server URL, and creates the same
   plugin row cursor.directory's form creates (`discovery_source =
@@ -84,11 +90,24 @@ plugin submitted on either site appears on both.
   are listed on both sites, flagged ones wait in cursor.directory's
   `/admin/plugins` queue. The scan runs on cursor.directory's drain cron,
   whichever site queued it.
+- **Pasted URLs fill in the form.** An MCP server URL is connected to like a
+  client would (`initialize`, then `tools/list`; `packages/plugins/src/mcp-inspect.ts`):
+  its name, website and icons, its tools, and whether it asks for an OAuth
+  sign-in, with the site's own title, description and icon as fallbacks.
+  Only servers that answer are accepted. The tools and sign-in requirement
+  are stored on the server's component metadata, so the app page lists them
+  and the security scan sees them. Every fetch is guarded (https only, no
+  credentials in the URL, no private addresses after DNS, redirects
+  re-checked, 5s timeouts, capped bodies). GitHub repositories fall back to
+  the repo's description, website, topics and owner avatar where the plugin
+  manifest is silent, and the preview shows stars, last push and whether
+  it's archived.
 - **Shared code:** plugin types, the GitHub parser, `insertPlugin`, the scan
   queue and the marketplace import live in `packages/plugins`
   (`@directories/plugins`), used by both apps.
-- **No ranking:** apps list official first, then community, alphabetically,
-  with the marketplace's categories as filters. Installs aren't counted.
+- **No ranking:** apps list official first, then community, each shuffled
+  on every visit, with the marketplace's categories as filters. Installs
+  aren't counted.
 
 ## Local development
 
@@ -141,8 +160,8 @@ a real shared bot from x.ai.
   to the shared project, run `seed:marketplace` once, and run
   cursor.directory's `seed:marketplace-plugins` once (its daily cron keeps
   apps in sync after that).
-- **Apps install path:** confirm the setup steps community app pages give
-  for adding a custom MCP server in Grok Bot.
+- **Apps install path:** try a community app's Add to Grok Bot on desktop
+  and mobile, to confirm the prefilled message reaches AddMcpServer.
 - **Secrets:** `XAI_API_KEY` (AI review) and `CRON_SECRET` (review retries)
   in the Vercel project.
 - **Grok Bot API:** confirm with the Grok Bot backend owners that the directory

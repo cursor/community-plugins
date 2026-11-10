@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { AppDirectory } from "@/components/app-directory";
 import { HeroBot } from "@/components/bot-art";
 import { Directory } from "@/components/directory";
+import { HeroCta } from "@/components/hero-cta";
 import { HomeIntro, IntroWord } from "@/components/home-intro";
 import { Segmented } from "@/components/segmented";
 import { RowsSkeleton } from "@/components/skeletons";
@@ -14,8 +14,8 @@ import { formatCount } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 const FALLBACK_COPY = {
-  bots: "Bots built by the Grok Bot community, ranked by what’s trending.",
-  apps: "Apps that give your bots new tools and skills.",
+  bots: "Bots built by the Grok Bot community",
+  apps: "Apps that give your bots new tools and skills",
 };
 
 type Tab = keyof typeof FALLBACK_COPY;
@@ -64,12 +64,7 @@ export default async function HomePage({ searchParams }: Props) {
             </Suspense>
           </div>
           <div className="intro-cta">
-            <Link
-              href={tab === "apps" ? "/submit?kind=app" : "/submit"}
-              className="btn btn-lg hero-cta"
-            >
-              {tab === "apps" ? "Submit an app" : "Submit a bot"}
-            </Link>
+            <HeroCta tab={tab} />
           </div>
         </div>
         <div className="intro-rest">
@@ -102,11 +97,10 @@ export default async function HomePage({ searchParams }: Props) {
 
 async function BotCopy({ bots }: { bots: Promise<DirectoryBot[]> }) {
   const list = await bots;
-  const creators = new Set(list.map((b) => b.creator.name)).size;
   return (
     <p className="hero-copy">
       {list.length > 0
-        ? `${formatCount(list.length)} bots from ${formatCount(creators)} creators in the Grok Bot community, ranked by what’s trending.`
+        ? `${formatCount(list.length)} bots from the Grok Bot community`
         : FALLBACK_COPY.bots}
     </p>
   );
@@ -114,11 +108,10 @@ async function BotCopy({ bots }: { bots: Promise<DirectoryBot[]> }) {
 
 async function AppCopy({ apps }: { apps: Promise<DirectoryApp[]> }) {
   const list = await apps;
-  const community = list.filter((a) => !a.marketplaceId).length;
   return (
     <p className="hero-copy">
       {list.length > 0
-        ? `${formatCount(list.length)} apps that give your bots new tools and skills${community > 0 ? `, ${formatCount(community)} of them from the community` : ""}.`
+        ? `${formatCount(list.length)} apps that give your bots new tools and skills`
         : FALLBACK_COPY.apps}
     </p>
   );
@@ -128,6 +121,25 @@ async function BotDirectory({ bots }: { bots: Promise<DirectoryBot[]> }) {
   return <Directory bots={await bots} />;
 }
 
+// Apps aren't ranked, so each visit gets a fresh order (official apps still
+// come first). Shuffled here, on the server, so hydration sees the same order.
+function shuffle<T>(list: T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 async function AppList({ apps }: { apps: Promise<DirectoryApp[]> }) {
-  return <AppDirectory apps={await apps} />;
+  const list = await apps;
+  return (
+    <AppDirectory
+      apps={[
+        ...shuffle(list.filter((a) => a.marketplaceId)),
+        ...shuffle(list.filter((a) => !a.marketplaceId)),
+      ]}
+    />
+  );
 }

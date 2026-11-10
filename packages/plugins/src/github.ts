@@ -35,13 +35,20 @@ export type ParsedPlugin = {
   github_repo_id?: number;
   /** Star count at extraction time, useful for ranking the seed batch. */
   stars?: number;
+  /** For reviewers and previews: whether the repo is archived, and its last push. */
+  archived?: boolean;
+  pushed_at?: string;
   components: ParsedComponent[];
 };
 
 export class GitHubParseError extends Error {
   constructor(
     message: string,
-    public readonly code: "invalid_url" | "repo_unreadable" | "no_components",
+    public readonly code:
+      | "invalid_url"
+      | "repo_unreadable"
+      | "no_components"
+      | "rate_limited",
   ) {
     super(message);
     this.name = "GitHubParseError";
@@ -217,13 +224,25 @@ async function fetchGitHubTree(
       },
       maxWaitMs: opts.maxWaitMs,
     });
+    // Out of API quota (60/h without GITHUB_TOKEN) looks like an empty repo
+    // otherwise; say what actually happened.
+    if (
+      res.status === 429 ||
+      (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0")
+    ) {
+      throw new GitHubParseError(
+        "GitHub is rate-limiting requests right now. Try again in a few minutes.",
+        "rate_limited",
+      );
+    }
     if (!res.ok) return [];
     const data = await res.json();
     return (data.tree ?? []).map((t: { path: string; type: string }) => ({
       path: t.path,
       type: t.type,
     }));
-  } catch {
+  } catch (err) {
+    if (err instanceof GitHubParseError) throw err;
     return [];
   }
 }
@@ -235,6 +254,11 @@ export type GitHubRepoMeta = {
   archived: boolean;
   default_branch: string;
   license_spdx: string | null;
+  description: string | null;
+  homepage: string | null;
+  topics: string[];
+  owner_avatar: string | null;
+  pushed_at: string | null;
 };
 
 /**
@@ -278,6 +302,18 @@ export async function fetchGitHubRepoMeta(
       archived: Boolean(data.archived),
       default_branch: String(data.default_branch ?? "HEAD"),
       license_spdx: data.license?.spdx_id ?? null,
+      description:
+        typeof data.description === "string" ? data.description : null,
+      homepage:
+        typeof data.homepage === "string" && /^https?:\/\//.test(data.homepage)
+          ? data.homepage
+          : null,
+      topics: Array.isArray(data.topics) ? data.topics.map(String) : [],
+      owner_avatar:
+        typeof data.owner?.avatar_url === "string"
+          ? data.owner.avatar_url
+          : null,
+      pushed_at: typeof data.pushed_at === "string" ? data.pushed_at : null,
     };
   } catch {
     return null;
@@ -602,22 +638,29 @@ export async function parseGitHubPlugin(
       ? options.repoMeta
       : await fetchGitHubRepoMeta(owner, repo, fetchOpts);
 
+  // The repo's own description, website, topics and owner avatar fill in
+  // whatever the plugin manifest leaves out.
   return {
     name: (manifest.name as string) || repo,
     description:
-      (manifest.description as string) || `${repo} plugin for Cursor`,
+      (manifest.description as string) ||
+      repoMeta?.description ||
+      `${repo} plugin for Cursor`,
     version: (manifest.version as string) || "1.0.0",
-    logo,
-    homepage: (manifest.homepage as string) || undefined,
+    logo: logo ?? repoMeta?.owner_avatar ?? undefined,
+    homepage: (manifest.homepage as string) || repoMeta?.homepage || undefined,
     repository: `https://github.com/${owner}/${repo}`,
     license:
       (manifest.license as string) ?? repoMeta?.license_spdx ?? undefined,
-    keywords: (manifest.keywords as string[]) || [],
+    keywords:
+      (manifest.keywords as string[]) || repoMeta?.topics.slice(0, 10) || [],
     author_name: author?.name,
     author_url: author?.url || author?.email,
     author_avatar: author?.avatar,
     github_repo_id: repoMeta?.id,
     stars: repoMeta?.stars,
+    archived: repoMeta?.archived,
+    pushed_at: repoMeta?.pushed_at ?? undefined,
     components: deduped,
   };
 }

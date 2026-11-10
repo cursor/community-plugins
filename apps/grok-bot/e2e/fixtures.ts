@@ -199,29 +199,40 @@ async function seedApps(owner: string) {
   });
   const { error: compError } = await db()
     .from("plugin_components")
-    .insert([
-      server(APP_FIXTURES.official.slug, "zephyr-official", null),
-      server(
-        APP_FIXTURES.community.slug,
-        "zephyr-community",
-        JSON.stringify({ url: APP_FIXTURES.community.serverUrl }),
-      ),
-      {
-        plugin_id: id(APP_FIXTURES.community.slug),
-        type: "skill",
-        name: "zephyr-notes",
-        slug: "zephyr-notes",
-        description: "Writes meeting notes.",
-      },
-      server(APP_FIXTURES.pending.slug, "zephyr-pending", null),
-      {
-        plugin_id: id(APP_FIXTURES.cursorOnly.slug),
-        type: "rule",
-        name: "zephyr-rule",
-        slug: "zephyr-rule",
-      },
-      server(APP_FIXTURES.notInGrokBot.slug, "zephyr-hidden", null),
-    ]);
+    .insert(
+      [
+        server(APP_FIXTURES.official.slug, "zephyr-official", null),
+        {
+          ...server(
+            APP_FIXTURES.community.slug,
+            "zephyr-community",
+            JSON.stringify({ url: APP_FIXTURES.community.serverUrl }),
+          ),
+          // What the server reported when it was submitted.
+          metadata: {
+            url: APP_FIXTURES.community.serverUrl,
+            auth: "oauth",
+            tools: [{ name: "zephyr_search", description: "Searches notes." }],
+          },
+        },
+        {
+          plugin_id: id(APP_FIXTURES.community.slug),
+          type: "skill",
+          name: "zephyr-notes",
+          slug: "zephyr-notes",
+          description: "Writes meeting notes.",
+        },
+        server(APP_FIXTURES.pending.slug, "zephyr-pending", null),
+        {
+          plugin_id: id(APP_FIXTURES.cursorOnly.slug),
+          type: "rule",
+          name: "zephyr-rule",
+          slug: "zephyr-rule",
+        },
+        server(APP_FIXTURES.notInGrokBot.slug, "zephyr-hidden", null),
+        // A multi-row insert sends every column for every row.
+      ].map((row) => ({ metadata: {}, ...row })),
+    );
   if (compError) throw compError;
 }
 

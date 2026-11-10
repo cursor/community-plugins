@@ -35,7 +35,9 @@ export function AppLogo({
         width: size,
         height: size,
         fontSize: size * 0.36,
-        background: logo ? "var(--pill)" : colorFor(name),
+        // Logos are drawn for light backgrounds; transparent ones would
+        // vanish on the dark theme's tiles.
+        background: logo ? "#fff" : colorFor(name),
       }}
     >
       {logo ? (

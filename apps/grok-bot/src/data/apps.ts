@@ -33,14 +33,16 @@ export type AppComponent = {
   description: string | null;
   /** The MCP server's config as cursor.directory stores it (JSON). */
   content: string | null;
+  /** Tools a remote server listed when it was submitted. */
+  tools: { name: string; description: string }[];
+  /** The server asked for an OAuth sign-in when it was submitted. */
+  signIn: boolean;
 };
 
 export type AppDetail = DirectoryApp & {
   components: AppComponent[];
   /** The member who submitted it, when it's a community app. */
   ownerId: string | null;
-  /** False for the few marketplace plugins that only work in Grok Bot. */
-  onCursorDirectory: boolean;
 };
 
 type AppRow = {
@@ -93,21 +95,40 @@ export async function listApps(): Promise<DirectoryApp[]> {
     );
 }
 
+function toolsFrom(value: unknown): AppComponent["tools"] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((t) =>
+    t && typeof t.name === "string"
+      ? [
+          {
+            name: t.name,
+            description: typeof t.description === "string" ? t.description : "",
+          },
+        ]
+      : [],
+  );
+}
+
 export async function getApp(slug: string): Promise<AppDetail | null> {
   const admin = await createAdminClient();
   const { data } = await admin
     .from("plugins")
     .select(
-      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, created_at, active, unavailable_in, owner_id, plugin_components(type, name, description, content, sort_order)",
+      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, created_at, active, unavailable_in, owner_id, plugin_components(type, name, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
   if (!data?.active || (data.unavailable_in ?? []).includes("grok_bot"))
     return null;
   const components = (
-    (data.plugin_components ?? []) as (AppComponent & {
+    (data.plugin_components ?? []) as {
+      type: string;
+      name: string;
+      description: string | null;
+      content: string | null;
+      metadata: Record<string, unknown> | null;
       sort_order: number;
-    })[]
+    }[]
   ).sort((a, b) => a.sort_order - b.sort_order);
   if (!worksInGrokBot(components.map((c) => c.type))) return null;
   const app = toApp({
@@ -122,14 +143,15 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
     ...app,
     components: components
       .filter((c) => c.type === "mcp_server" || c.type === "skill")
-      .map(({ type, name, description, content }) => ({
+      .map(({ type, name, description, content, metadata }) => ({
         type,
         name,
         description,
         content,
+        tools: toolsFrom(metadata?.tools),
+        signIn: metadata?.auth === "oauth",
       })),
     ownerId: data.owner_id,
-    onCursorDirectory: !(data.unavailable_in ?? []).includes("cursor"),
   };
 }
 

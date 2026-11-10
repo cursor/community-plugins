@@ -1,5 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OPTIMIZED_IMAGE_HOSTS } from "./src/lib/image-hosts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -135,45 +136,7 @@ const nextConfig = {
     ];
   },
   images: {
-    remotePatterns: [
-      {
-        // Logos of plugins imported from the Cursor Marketplace.
-        hostname: "cursor-cdn.com",
-      },
-      {
-        hostname: "ptht05hbb1ssoooe.public.blob.vercel-storage.com",
-      },
-      {
-        hostname: "cdn.brandfetch.io",
-      },
-      {
-        hostname: "pbs.twimg.com",
-      },
-      {
-        hostname: "midday.ai",
-      },
-      {
-        hostname: "pub-abe1cd4008f5412abb77357f87d7d7bb.r2.dev",
-      },
-      {
-        hostname: "avatars.githubusercontent.com",
-      },
-      {
-        hostname: "knhgkaawjfqqwmsgmxns.supabase.co",
-      },
-      {
-        hostname: "service.cursor.directory",
-      },
-      {
-        hostname: "console.settlemint.com",
-      },
-      {
-        hostname: "assets.serverless-extras.com",
-      },
-      {
-        hostname: "images.lumacdn.com",
-      },
-    ],
+    remotePatterns: OPTIMIZED_IMAGE_HOSTS.map((hostname) => ({ hostname })),
   },
 };
 
