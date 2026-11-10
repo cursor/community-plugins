@@ -96,6 +96,25 @@ test.describe("apps", () => {
     );
   });
 
+  test("lists a community app's skills for messages too long to name each", async ({
+    request,
+  }) => {
+    const res = await request.get(
+      `/apps/${APP_FIXTURES.community.slug}/skills.md`,
+    );
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toMatch(
+      new RegExp(
+        `- zephyr-notes: https?://\\S+/apps/${APP_FIXTURES.community.slug}/skills/zephyr-notes/SKILL\\.md`,
+      ),
+    );
+    expect(
+      (
+        await request.get(`/apps/${APP_FIXTURES.legacy.slug}/skills.md`)
+      ).status(),
+    ).toBe(404);
+  });
+
   test("serves a community app's skill as SKILL.md", async ({ request }) => {
     const res = await request.get(
       `/apps/${APP_FIXTURES.community.slug}/skills/zephyr-notes/SKILL.md`,

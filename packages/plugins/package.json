@@ -8,6 +8,7 @@
     "./github": "./src/github.ts",
     "./insert": "./src/insert.ts",
     "./marketplace": "./src/marketplace.ts",
+    "./mcp-config": "./src/mcp-config.ts",
     "./mcp-inspect": "./src/mcp-inspect.ts",
     "./moderation": "./src/moderation.ts",
     "./queue": "./src/queue.ts",

@@ -30,11 +30,23 @@ const record = (v: unknown): Record<string, unknown> | null =>
     ? (v as Record<string, unknown>)
     : null;
 
+/** JSON, or the JSONC people paste from their editors (comments, trailing commas). */
 function parseJson(text: string): Record<string, unknown> | null {
   try {
     return record(JSON.parse(text));
   } catch {
-    return null;
+    try {
+      return record(
+        JSON.parse(
+          text
+            .replace(/\/\*[\s\S]*?\*\//g, "")
+            .replace(/(^|\s)\/\/.*$/gm, "$1")
+            .replace(/,(\s*[}\]])/g, "$1"),
+        ),
+      );
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -58,11 +70,25 @@ export function parseMcpSetup(
   content: string | null,
   metadata: Record<string, unknown> | null,
 ): McpSetup | null {
-  let config =
-    content !== null
-      ? parseJson(content)
-      : (record(metadata?.config) ?? fromInstallLink(metadata?.mcp_link));
-  const servers = record(config?.mcpServers);
+  // The first place that holds a usable setup wins: some components keep a
+  // description in content and the setup in metadata.
+  for (const config of [
+    content === null ? null : parseJson(content),
+    record(metadata?.config),
+    fromInstallLink(metadata?.mcp_link),
+  ]) {
+    const setup = config && setupFrom(name, config);
+    if (setup) return setup;
+  }
+  return null;
+}
+
+function setupFrom(
+  name: string,
+  parsed: Record<string, unknown>,
+): McpSetup | null {
+  let config: Record<string, unknown> | null = parsed;
+  const servers = record(config.mcpServers);
   if (servers) config = record(servers[name] ?? Object.values(servers)[0]);
   if (!config) return null;
 

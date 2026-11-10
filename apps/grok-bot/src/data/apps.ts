@@ -1,7 +1,7 @@
 import "server-only";
 
 import { appCategories, worksInGrokBot } from "@directories/plugins/apps";
-import { type McpSetup, parseMcpSetup } from "@/lib/mcp-config";
+import { type McpSetup, parseMcpSetup } from "@directories/plugins/mcp-config";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**

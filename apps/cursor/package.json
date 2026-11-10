@@ -15,7 +15,8 @@
     "seed:insert": "bun run --env-file=.env src/scripts/insert-from-jsonl.ts",
     "seed:marketplace-plugins": "bun run --conditions=react-server --env-file=.env src/scripts/sync-marketplace-plugins.ts",
     "mcp:create-oauth-client": "bun run --env-file=.env src/scripts/create-mcp-oauth-client.ts",
-    "categorize:apps": "bun run --conditions=react-server --env-file=.env src/scripts/categorize-apps.ts"
+    "categorize:apps": "bun run --conditions=react-server --env-file=.env src/scripts/categorize-apps.ts",
+    "recover:mcp-setups": "bun run --conditions=react-server --env-file=.env src/scripts/recover-mcp-setups.ts"
   },
   "dependencies": {
     "@directories/plugins": "workspace:*",

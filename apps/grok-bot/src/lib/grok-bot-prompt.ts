@@ -1,4 +1,4 @@
-import type { McpSetup } from "./mcp-config";
+import type { McpSetup } from "@directories/plugins/mcp-config";
 
 // Grok Bot's prefilled-message link (the web twin of
 // grokbot://app/v1/prompt). It fills the main agent's message box without
@@ -35,6 +35,11 @@ export function addServerSentence(name: string, setup: McpSetup): string {
  */
 export function addSkillSentence(name: string, skillUrl: string): string {
   return `Add the skill "${name}" from ${skillUrl} (fetch it and save it as a skill).`;
+}
+
+/** Every skill at once, through the list the directory serves. */
+export function addSkillsSentence(count: number, listUrl: string): string {
+  return `Add the ${count} skills listed at ${listUrl} (fetch each SKILL.md it links and save it as a skill).`;
 }
 
 /** The prefilled-message link, or null when the text doesn't fit. */

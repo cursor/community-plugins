@@ -14,6 +14,7 @@ import { formatRelativeDate } from "@/lib/format";
 import {
   addServerSentence,
   addSkillSentence,
+  addSkillsSentence,
   grokBotPromptUrl,
 } from "@/lib/grok-bot-prompt";
 import { siteUrl } from "@/lib/og";
@@ -74,10 +75,27 @@ export default async function AppPage({ params }: Props) {
             : null;
         return c.setup ? addServerSentence(c.name, c.setup) : null;
       });
-  const addAll =
-    sentences.length > 0 && sentences.every((s) => s !== null)
-      ? grokBotPromptUrl(sentences.join(" "))
-      : null;
+  const skillCount = app.components.filter((c) => c.type === "skill").length;
+  const readable = sentences.length > 0 && sentences.every((s) => s !== null);
+  // When naming every skill doesn't fit, one sentence points at the list.
+  const addAll = !readable
+    ? null
+    : (grokBotPromptUrl(sentences.join(" ")) ??
+      (skillCount > 1
+        ? grokBotPromptUrl(
+            [
+              ...app.components.flatMap((c) =>
+                c.type !== "skill" && c.setup
+                  ? [addServerSentence(c.name, c.setup)]
+                  : [],
+              ),
+              addSkillsSentence(
+                skillCount,
+                `${siteUrl()}/apps/${app.slug}/skills.md`,
+              ),
+            ].join(" "),
+          )
+        : null));
 
   return (
     <div className="detail">
