@@ -43,10 +43,21 @@ create index if not exists grok_bots_status_idx on public.grok_bots (status);
 create index if not exists grok_bots_owner_idx on public.grok_bots (owner_id);
 create index if not exists grok_bots_category_idx on public.grok_bots (category) where status = 'listed';
 
+create or replace function public.set_grok_bots_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 drop trigger if exists grok_bots_set_updated_at on public.grok_bots;
 create trigger grok_bots_set_updated_at
   before update on public.grok_bots
-  for each row execute function public.set_updated_at();
+  for each row execute function public.set_grok_bots_updated_at();
 
 -- Listed bots are world-readable; owners also read their own submissions in
 -- any status. All writes go through the app's service-role client, which
