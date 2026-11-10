@@ -9,6 +9,7 @@
     "./insert": "./src/insert.ts",
     "./marketplace": "./src/marketplace.ts",
     "./mcp-inspect": "./src/mcp-inspect.ts",
+    "./moderation": "./src/moderation.ts",
     "./queue": "./src/queue.ts",
     "./slug": "./src/slug.ts",
     "./types": "./src/types.ts"

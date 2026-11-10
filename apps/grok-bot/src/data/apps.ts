@@ -30,6 +30,7 @@ export type DirectoryApp = {
 export type AppComponent = {
   type: string;
   name: string;
+  slug: string;
   description: string | null;
   /** The MCP server's config as cursor.directory stores it (JSON). */
   content: string | null;
@@ -114,7 +115,7 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
   const { data } = await admin
     .from("plugins")
     .select(
-      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, created_at, active, unavailable_in, owner_id, plugin_components(type, name, description, content, metadata, sort_order)",
+      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, created_at, active, unavailable_in, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -124,6 +125,7 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
     (data.plugin_components ?? []) as {
       type: string;
       name: string;
+      slug: string;
       description: string | null;
       content: string | null;
       metadata: Record<string, unknown> | null;
@@ -143,9 +145,10 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
     ...app,
     components: components
       .filter((c) => c.type === "mcp_server" || c.type === "skill")
-      .map(({ type, name, description, content, metadata }) => ({
+      .map(({ type, name, slug, description, content, metadata }) => ({
         type,
         name,
+        slug,
         description,
         content,
         tools: toolsFrom(metadata?.tools),

@@ -11,8 +11,13 @@ import {
   primaryAppCategory,
 } from "@/lib/app-categories";
 import { formatRelativeDate } from "@/lib/format";
-import { addServerSentence, grokBotPromptUrl } from "@/lib/grok-bot-prompt";
+import {
+  addServerSentence,
+  addSkillSentence,
+  grokBotPromptUrl,
+} from "@/lib/grok-bot-prompt";
 import { parseMcpSetup } from "@/lib/mcp-config";
+import { siteUrl } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
 
@@ -56,20 +61,24 @@ export default async function AppPage({ params }: Props) {
         .slice(0, 3)
     : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
-  const servers = app.components
-    .filter((c) => c.type === "mcp_server")
-    .map((c) => ({ name: c.name, setup: parseMcpSetup(c.name, c.content) }));
-  // One message adding every server; only when all of them can be read, so
-  // the agent isn't left adding half an app.
+  // One message adding every server and skill; only when all of them can be
+  // read, so the agent isn't left adding half an app.
+  const sentences = app.marketplaceId
+    ? []
+    : app.components.map((c) => {
+        if (c.type === "skill")
+          return c.content
+            ? addSkillSentence(
+                c.name,
+                `${siteUrl()}/apps/${app.slug}/skills/${c.slug}/SKILL.md`,
+              )
+            : null;
+        const setup = parseMcpSetup(c.name, c.content);
+        return setup ? addServerSentence(c.name, setup) : null;
+      });
   const addAll =
-    !app.marketplaceId &&
-    servers.length > 0 &&
-    servers.every((s) => s.setup !== null)
-      ? grokBotPromptUrl(
-          servers
-            .map((s) => (s.setup ? addServerSentence(s.name, s.setup) : ""))
-            .join(" "),
-        )
+    sentences.length > 0 && sentences.every((s) => s !== null)
+      ? grokBotPromptUrl(sentences.join(" "))
       : null;
 
   return (

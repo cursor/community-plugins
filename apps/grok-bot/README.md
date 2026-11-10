@@ -23,7 +23,8 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   x.ai/bot marketplace catalog, minus "From Grok Bot Team". The reviewer only
   sees the public card: a bot's full instructions need a Grok Bot login.
 - **Review:** admins (`public.admins`, shared with cursor.directory) work at
-  `/admin` or with the Community Plugins MCP server's `grok_bot` tools. The
+  `/admin` (Bots side; apps are under Apps, see below) or with the Community
+  Plugins MCP server's `grok_bot` tools. The
   Review queue tab lists, declines (with a note) or re-runs the AI review;
   Listed changes a bot's category or unlists it (with a note); Removed shows
   declined and unlisted bots and relists them. Every decision, by the AI, the
@@ -81,8 +82,20 @@ plugin submitted on either site appears on both.
   "x")". Grok Bot's AddMcpServer tool then asks the user to confirm before
   adding it (`src/lib/grok-bot-prompt.ts`). The message names the headers or
   environment variables a server needs but never their values, since the link
-  travels wherever it's pasted. Apps whose message can't be built (unreadable
-  config, over 1,000 characters, or skills only) show no Add button.
+  travels wherever it's pasted. Skills go in the same message: "Add the skill
+  "x" from https://…/apps/<slug>/skills/<skill>/SKILL.md (fetch it and save
+  it as a skill)", which the agent's `skill.write` saves. The directory serves
+  that SKILL.md from the stored copy the security scan reviewed, not the
+  repository's current state. Apps whose message can't be built (an unreadable
+  server config, or over 1,000 characters) show no Add button.
+- **Moderation** happens on either site: the Grok Bot Directory's `/admin`
+  has an Apps side (review queue of flagged, failed, stuck and scanning
+  plugins; Listed community apps; Removed) next to Bots. Both sites call the
+  same operations (`packages/plugins/src/moderation.ts`) on the same rows,
+  and log to the same `plugin_moderation_events`. After a decision here, the
+  directory asks cursor.directory to refresh its cached plugin pages
+  (`/api/plugins/revalidate`, `PLUGIN_REVALIDATE_SECRET` shared by both
+  projects); re-scans run on cursor.directory's drain cron.
 - **Submitting** (`/submit?kind=app`) takes a GitHub repository (parsed like
   cursor.directory does) or a remote MCP server URL, and creates the same
   plugin row cursor.directory's form creates (`discovery_source =
@@ -161,9 +174,12 @@ a real shared bot from x.ai.
   cursor.directory's `seed:marketplace-plugins` once (its daily cron keeps
   apps in sync after that).
 - **Apps install path:** try a community app's Add to Grok Bot on desktop
-  and mobile, to confirm the prefilled message reaches AddMcpServer.
+  and mobile, to confirm the prefilled message reaches AddMcpServer and that
+  the agent fetches and saves skills.
 - **Secrets:** `XAI_API_KEY` (AI review) and `CRON_SECRET` (review retries)
-  in the Vercel project.
+  in the Vercel project; `PLUGIN_REVALIDATE_SECRET` in both this project and
+  cursor.directory's (a team-level shared variable), with
+  `CURSOR_DIRECTORY_URL` here.
 - **Grok Bot API:** confirm with the Grok Bot backend owners that the directory
   may depend on the public template RPCs.
 - **Brand:** design team sign-off.

@@ -29,6 +29,14 @@ export function addServerSentence(name: string, setup: McpSetup): string {
   return `Add the local MCP server "${name}" that runs: ${[setup.command, ...setup.args].join(" ")}.${needs}`;
 }
 
+/**
+ * One skill, for the agent's skill.write: it fetches the SKILL.md the
+ * directory serves (the text the security scan reviewed) and saves it.
+ */
+export function addSkillSentence(name: string, skillUrl: string): string {
+  return `Add the skill "${name}" from ${skillUrl} (fetch it and save it as a skill).`;
+}
+
 /** The prefilled-message link, or null when the text doesn't fit. */
 export function grokBotPromptUrl(text: string): string | null {
   const line = text.replace(/\s+/g, " ").trim();

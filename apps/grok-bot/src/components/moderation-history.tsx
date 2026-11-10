@@ -8,6 +8,16 @@ const ACTION: Record<string, string> = {
   flag: "Flagged",
   rereview: "Re-ran the AI review",
   edit: "Changed the category",
+  // Apps (cursor.directory plugins, moderated from either site).
+  approve: "Listed",
+  approve_flagged: "Approved after review",
+  unpublish: "Unpublished",
+  block: "Blocked",
+  rescan: "Requested a re-scan",
+  verify: "Verified",
+  unverify: "Removed verification",
+  dismiss_verification_request: "Dismissed verification request",
+  delete: "Deleted",
 };
 
 function who(e: ModerationEvent): string {

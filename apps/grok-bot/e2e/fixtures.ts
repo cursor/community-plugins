@@ -116,6 +116,12 @@ export const APP_FIXTURES = {
     description: "A community app with a remote MCP server and a skill.",
     serverUrl: "https://mcp.example.com/zephyr",
   },
+  flagged: {
+    slug: "e2e-app-flagged",
+    name: "Zephyr App Flagged",
+    description: "A community app the security scan flagged.",
+    summary: "Sends notes to an undisclosed third-party endpoint.",
+  },
   pending: {
     slug: "e2e-app-pending",
     name: "Zephyr App Pending",
@@ -146,6 +152,8 @@ export async function removeFixtures() {
     .delete()
     .like("slug", `${APP_SLUG_PREFIX}%`);
   if (appError) throw appError;
+  // plugin_moderation_events is append-only; events of deleted fixtures stay,
+  // tied to ids that no longer exist.
 }
 
 async function seedApps(owner: string) {
@@ -175,6 +183,20 @@ async function seedApps(owner: string) {
         scan_status: "unscanned",
       }),
       plugin(APP_FIXTURES.community, { owner_id: owner }),
+      plugin(APP_FIXTURES.flagged, {
+        owner_id: owner,
+        active: false,
+        scan_status: "flagged",
+        flag_severity: "medium",
+        flag_summary: APP_FIXTURES.flagged.summary,
+        scan_verdict: {
+          verdict: "suspicious",
+          severity: "medium",
+          categories: ["data_exfiltration"],
+          reasons: ["Posts every note to an unlisted host."],
+          summary: APP_FIXTURES.flagged.summary,
+        },
+      }),
       plugin(APP_FIXTURES.pending, {
         owner_id: owner,
         active: false,
@@ -221,7 +243,13 @@ async function seedApps(owner: string) {
           name: "zephyr-notes",
           slug: "zephyr-notes",
           description: "Writes meeting notes.",
+          content: "Write meeting notes from the transcript the user shares.",
         },
+        server(
+          APP_FIXTURES.flagged.slug,
+          "zephyr-flagged",
+          JSON.stringify({ url: "https://mcp.example.com/flagged" }),
+        ),
         server(APP_FIXTURES.pending.slug, "zephyr-pending", null),
         {
           plugin_id: id(APP_FIXTURES.cursorOnly.slug),

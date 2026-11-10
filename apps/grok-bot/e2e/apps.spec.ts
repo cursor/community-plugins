@@ -64,8 +64,15 @@ test.describe("apps", () => {
     expect(href.origin + href.pathname).toBe(
       "https://cursor.com/grok-bot/link/v1/prompt",
     );
-    expect(href.searchParams.get("text")).toBe(
+    // Its server, then its skill from the copy the directory serves.
+    const text = href.searchParams.get("text") ?? "";
+    expect(text).toContain(
       `Add the MCP server ${APP_FIXTURES.community.serverUrl} (call it "zephyr-community").`,
+    );
+    expect(text).toMatch(
+      new RegExp(
+        `Add the skill "zephyr-notes" from https?://\\S+/apps/${APP_FIXTURES.community.slug}/skills/zephyr-notes/SKILL\\.md \\(fetch it and save it as a skill\\)\\.$`,
+      ),
     );
     // What's inside lists its server (with the tools it reported and its
     // sign-in) and its skill.
@@ -73,6 +80,21 @@ test.describe("apps", () => {
     await expect(page.getByText("zephyr_search")).toBeVisible();
     await expect(page.getByTestId("requires-sign-in")).toBeVisible();
     await expect(page.getByText("zephyr-notes")).toBeVisible();
+  });
+
+  test("serves a community app's skill as SKILL.md", async ({ request }) => {
+    const res = await request.get(
+      `/apps/${APP_FIXTURES.community.slug}/skills/zephyr-notes/SKILL.md`,
+    );
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("text/markdown");
+    expect(await res.text()).toBe(
+      '---\nname: "zephyr-notes"\ndescription: "Writes meeting notes."\n---\n\nWrite meeting notes from the transcript the user shares.\n',
+    );
+    const missing = await request.get(
+      `/apps/${APP_FIXTURES.community.slug}/skills/nope/SKILL.md`,
+    );
+    expect(missing.status()).toBe(404);
   });
 
   test("apps that aren't listed in the directory 404", async ({ page }) => {
