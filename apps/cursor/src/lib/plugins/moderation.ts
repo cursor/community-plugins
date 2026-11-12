@@ -203,7 +203,36 @@ export function blockPlugin(
   );
 }
 
+/**
+ * A pending/scanning row younger than this still has a live queue message or
+ * a running worker behind it. Matches the stuck-scan threshold shared by
+ * getStuckScans() and the recover-stuck-scans cron: an older row is treated
+ * as stuck and may be re-scanned.
+ */
+export const SCAN_IN_PROGRESS_MS = 15 * 60 * 1000;
+
+export function isScanInProgress(
+  state: Pick<PluginModerationState, "scan_status" | "updated_at">,
+  now = Date.now(),
+): boolean {
+  if (state.scan_status !== "pending" && state.scan_status !== "scanning") {
+    return false;
+  }
+  return now - new Date(state.updated_at).getTime() < SCAN_IN_PROGRESS_MS;
+}
+
 export async function rescanPlugin(ctx: ModerationContext, pluginId: string) {
+  // Every re-scan entry point (admin UI buttons, MCP tool) lands here, so the
+  // in-progress check lives here too. Without it a second click while the
+  // first scan is queued or running enqueues a second message for the same
+  // plugin: two billable agent runs whose verdicts race each other.
+  const state = await getPluginModerationState(pluginId);
+  if (isScanInProgress(state)) {
+    throw new ModerationError(
+      `A scan for "${state.slug}" is already ${state.scan_status}. Check again in a few minutes.`,
+    );
+  }
+
   // The status reset must reach cached readers (detail banner, leaderboard)
   // before enqueueing, so a queue failure can't leave cached views showing a
   // stale status while the row is already pending. The drain route only

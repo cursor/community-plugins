@@ -538,11 +538,15 @@ export async function getStuckScans() {
   const supabase = await createClient();
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
+  // A scan counts as stuck 15 minutes after the row last changed, the same
+  // test the recover-stuck-scans cron and the MCP rescan tool apply. Every
+  // status write bumps updated_at through the plugins_set_updated_at trigger,
+  // so a fresh re-scan of an old plugin is not stuck until that time passes.
   const { data, error } = await supabase
     .from("plugins")
     .select("*, plugin_components(*)")
     .or(
-      `scan_status.eq.error,and(scan_status.in.(pending,scanning),created_at.lt.${fifteenMinutesAgo})`,
+      `scan_status.eq.error,and(scan_status.in.(pending,scanning),updated_at.lt.${fifteenMinutesAgo})`,
     )
     .order("created_at", { ascending: false })
     .limit(200);
