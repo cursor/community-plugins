@@ -128,12 +128,35 @@ export function parseMcpSetup(
   return null;
 }
 
+const isServer = (v: unknown) => {
+  const c = record(v);
+  return !!c && (!!c.url || !!c.serverUrl || !!c.command);
+};
+
+/**
+ * The servers a config lists by name: under `mcpServers` (most clients),
+ * `servers` or `mcp.servers` (VS Code), or bare, as READMEs often show just
+ * the entry: `{ "name": { "command": … } }`.
+ */
+function serversIn(
+  config: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const named =
+    record(config.mcpServers) ??
+    record(config.servers) ??
+    record(record(config.mcp)?.servers);
+  if (named) return named;
+  if (isServer(config)) return null;
+  const values = Object.values(config);
+  return values.length > 0 && values.every(isServer) ? config : null;
+}
+
 function setupFrom(
   name: string,
   parsed: Record<string, unknown>,
 ): McpSetup | null {
   let config: Record<string, unknown> | null = parsed;
-  const servers = record(config.mcpServers);
+  const servers = serversIn(parsed);
   if (servers) config = record(servers[name] ?? Object.values(servers)[0]);
   if (!config) return null;
 
