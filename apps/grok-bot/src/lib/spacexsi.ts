@@ -11,9 +11,10 @@ let client: SpaceXSI | null = null;
 
 export function spacexsi(): SpaceXSI {
   // retryBeforeOutput retries "service temporarily unavailable" failures
-  // that happen before the model writes anything.
+  // that happen before the model writes anything. A review can take longer
+  // than half a minute when the API is busy; the review cron allows 300 s.
   client ??= new SpaceXSI({
-    timeout: 30_000,
+    timeout: 90_000,
     maxRetries: 1,
     retryBeforeOutput: true,
   });
