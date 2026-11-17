@@ -8,19 +8,20 @@ import { THEME_SCRIPT } from "@/components/theme";
 import { getViewer } from "@/lib/auth";
 import "./globals.css";
 
+const DESCRIPTION =
+  "Community bots and apps for Grok Bot. Find a bot for every job, and apps that give it new tools and skills.";
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://grok-bot.directory",
   ),
   title: { default: "Grok Bot Directory", template: "%s · Grok Bot Directory" },
-  description:
-    "Find community-built Grok Bots for every job, ranked by what's trending.",
+  description: DESCRIPTION,
   openGraph: {
     type: "website",
     siteName: "Grok Bot Directory",
     title: "Grok Bot Directory",
-    description:
-      "Find community-built Grok Bots for every job, ranked by what's trending.",
+    description: DESCRIPTION,
   },
   twitter: { card: "summary_large_image" },
   alternates: { canonical: "/" },

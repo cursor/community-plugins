@@ -35,7 +35,8 @@ export default async function Image() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          width: 600,
+          // Wide enough for the line under the headline to stay on one row.
+          width: 660,
           height: "100%",
           padding: "64px 0 56px 72px",
         }}
@@ -61,7 +62,7 @@ export default async function Image() {
               color: "#737373",
             }}
           >
-            Community-built Grok Bots, ranked by what’s trending.
+            Community bots and apps for Grok Bot.
           </div>
         </div>
         <div style={{ fontSize: 26, color: "#0a0a0a" }}>grok-bot.directory</div>
