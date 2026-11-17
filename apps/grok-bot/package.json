@@ -21,7 +21,7 @@
     "@vercel/firewall": "^1.2.0",
     "@xai-official/sdk": "0.2.7",
     "fuse.js": "^7.3.0",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "server-only": "^0.0.1",
