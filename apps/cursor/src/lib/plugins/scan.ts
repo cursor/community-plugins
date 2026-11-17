@@ -1,7 +1,7 @@
 /**
  * Plugin security scan.
  *
- * Asks Grok (through the official xAI SDK) to review the plugin's inline
+ * Asks Grok (through the official SpaceXSI SDK) to review the plugin's inline
  * component content and its repository, which it explores with read-only
  * file tools (`./repo-tools.ts`), and writes the verdict back to the
  * `plugins` row. Invoked from the queue
@@ -46,7 +46,7 @@ import {
 } from "@xai-official/sdk";
 import { x as extractTar } from "tar";
 import { z } from "zod";
-import { XAI_MODEL, xai, xaiConfigured } from "@/lib/xai";
+import { SPACEXSI_MODEL, spacexsi, spacexsiConfigured } from "@/lib/spacexsi";
 import { createClient } from "@/utils/supabase/admin-client";
 import { REPO_TOOLS, repoTools } from "./repo-tools";
 
@@ -425,7 +425,7 @@ async function runSecurityAgent(
     similarCandidates: similar.length,
   });
 
-  if (!xaiConfigured()) {
+  if (!spacexsiConfigured()) {
     throw new FatalScanError(
       "XAI_API_KEY is not configured; cannot run plugin security scan.",
     );
@@ -482,7 +482,7 @@ async function runSecurityAgent(
     logInfo(tag, "review start", {
       hasRepo,
       files: tree?.files.length ?? 0,
-      model: XAI_MODEL,
+      model: SPACEXSI_MODEL,
     });
 
     const startedAt = Date.now();
@@ -528,8 +528,8 @@ async function reviewTurn(
   tag: string,
 ): Promise<ModelResponse> {
   try {
-    return await xai().responses.create({
-      model: XAI_MODEL,
+    return await spacexsi().responses.create({
+      model: SPACEXSI_MODEL,
       input,
       reasoning: { effort: "medium" },
       prompt_cache_key: `plugin-scan:${tag}`,
@@ -551,12 +551,12 @@ async function reviewTurn(
       status === 429 ||
       status >= 500
     ) {
-      logError(tag, "xAI request failed; will retry", err);
+      logError(tag, "SpaceXSI request failed; will retry", err);
       throw err;
     }
-    logError(tag, "xAI request rejected", err);
+    logError(tag, "SpaceXSI request rejected", err);
     throw new FatalScanError(
-      `xAI request failed: ${err instanceof Error ? err.message : String(err)}`,
+      `SpaceXSI request failed: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }

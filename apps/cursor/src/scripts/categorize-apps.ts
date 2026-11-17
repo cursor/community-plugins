@@ -10,7 +10,7 @@ import {
   worksInGrokBot,
 } from "@directories/plugins/apps";
 import { z } from "zod";
-import { XAI_MODEL, xai, xaiConfigured } from "@/lib/xai";
+import { SPACEXSI_MODEL, spacexsi, spacexsiConfigured } from "@/lib/spacexsi";
 import { createClient } from "@/utils/supabase/admin-client";
 
 const BATCH = 25;
@@ -67,8 +67,8 @@ ${clip(app.description, 300) || "(no description)"}${app.keywords?.length ? `\nk
 }
 
 async function pick(batch: App[]): Promise<Map<string, string>> {
-  const response = await xai().responses.create({
-    model: XAI_MODEL,
+  const response = await spacexsi().responses.create({
+    model: SPACEXSI_MODEL,
     input: [
       { role: "system", content: SYSTEM },
       {
@@ -123,7 +123,7 @@ async function loadApps(): Promise<App[]> {
 }
 
 async function main() {
-  if (!xaiConfigured()) throw new Error("XAI_API_KEY is not set");
+  if (!spacexsiConfigured()) throw new Error("XAI_API_KEY is not set");
   const apps = (await loadApps()).slice(0, limit);
   console.log(
     `categorize-apps: ${apps.length} apps without a category${dryRun ? " (dry run)" : ""}`,

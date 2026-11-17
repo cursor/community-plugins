@@ -110,11 +110,11 @@ See the [Open Plugins specification](https://open-plugins.com/plugin-builders/sp
 ## Plugin security scan
 
 Submitted plugins are auto-reviewed by Grok (`grok-4.7`, through the official
-xAI SDK) from the plugin's inline component content and a fresh download of its
-repo. Grok inspects the repo with read-only tools (list, read and search files;
-`src/lib/plugins/repo-tools.ts`); nothing in the repo is executed. The verdict
-(`safe` / `suspicious` / `malicious`) is written back to `plugins.scan_status`
-and surfaces in the admin queue.
+SpaceXSI SDK) from the plugin's inline component content and a fresh download
+of its repo. Grok inspects the repo with read-only tools (list, read and search
+files; `src/lib/plugins/repo-tools.ts`); nothing in the repo is executed. The
+verdict (`safe` / `suspicious` / `malicious`) is written back to
+`plugins.scan_status` and surfaces in the admin queue.
 
 The scan is asynchronous and runs out of the request lifecycle:
 

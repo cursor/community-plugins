@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     error: 0,
     skipped: 0,
   };
-  // One at a time keeps xAI usage and database writes predictable.
+  // One at a time keeps SpaceXSI usage and database writes predictable.
   for (const id of ids) outcomes[await reviewBot(id)]++;
   return NextResponse.json({ reviewed: ids.length, ...outcomes });
 }

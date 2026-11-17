@@ -11,7 +11,7 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   the public `GetPublicGrokBotTemplate` RPC (`src/lib/grok-bot-api.ts`) and
   stores it, so pages never depend on a live fetch.
 - **AI review:** every submission is reviewed by Grok 4.7 through the official
-  xAI SDK (`src/lib/ai-review.ts`), mirroring cursor.directory's plugin
+  SpaceXSI SDK (`src/lib/ai-review.ts`), mirroring cursor.directory's plugin
   security scan. It reads the bot's public card and similarly named bots
   (`find_similar_grok_bots`) and returns a verdict (safe, suspicious,
   malicious), severity, flags (spam, impersonation, prompt injection, harmful,
