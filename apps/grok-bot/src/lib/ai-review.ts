@@ -128,7 +128,7 @@ export async function reviewBot(botId: string): Promise<ReviewOutcome> {
   const admin = await createAdminClient();
   // Claim it: only pending bots that aren't mid-review (or whose review
   // stalled) and still have attempts left.
-  const { data: bot } = await admin
+  const { data: bot, error: claimError } = await admin
     .from("grok_bots")
     .update({
       ai_review_status: "reviewing",
@@ -140,8 +140,16 @@ export async function reviewBot(botId: string): Promise<ReviewOutcome> {
     .or(
       `ai_review_status.is.null,ai_review_status.neq.reviewing,ai_review_started_at.lt.${new Date(Date.now() - 10 * 60_000).toISOString()}`,
     )
-    .select("id, slug, name, description, category, ai_review_attempts")
+    // The hosted Data API applies an `or` filter to the returned row, so the
+    // columns it names must be returned too or the update is refused.
+    .select(
+      "id, slug, name, description, category, ai_review_attempts, ai_review_status, ai_review_started_at",
+    )
     .maybeSingle();
+  if (claimError) {
+    console.error(`[ai-review] claiming ${botId} failed:`, claimError.message);
+    return "error";
+  }
   if (!bot) return "skipped";
   await admin
     .from("grok_bots")
