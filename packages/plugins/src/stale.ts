@@ -5,14 +5,17 @@ import { unpublishPlugin } from "./moderation";
 // listing points at a repository two ways: `plugins.repository` (plugins
 // submitted from a repo) or, for old listings that are only a link, each MCP
 // server's `metadata.link`. The weekly clean-up (cursor.directory's
-// /api/cron/clean-stale-plugins) unpublishes the ones below, recording a
-// moderation event so an admin can find and restore them:
+// /api/cron/clean-stale-plugins) unpublishes a plugin Grok Bot can't add
+// when either holds, recording a moderation event so an admin can find and
+// restore it:
 //
 //   - every repository it points at no longer exists; or
-//   - it is only a link, Grok Bot can't add it, and every repository it
-//     points at is gone or archived.
+//   - it is only a link, and every repository it points at is gone or
+//     archived.
 //
-// A repository that can't be checked (rate limit, outage, access denied) is
+// A plugin Grok Bot can still add is left alone even when its repository is
+// gone: its setup was stored when it was submitted and still works. A
+// repository that can't be checked (rate limit, outage, access denied) is
 // never treated as gone.
 
 export type RepoState = "alive" | "archived" | "gone";
@@ -57,14 +60,14 @@ export function staleReason(
   p: StaleCandidate,
   state: (repo: string) => RepoState | null,
 ): string | null {
+  if (p.grok_bot_addable) return null;
   const repos = reposOf(p);
   if (!repos) return null;
   const states = repos.map(state);
   if (states.some((s) => s === null)) return null;
   if (states.every((s) => s === "gone")) return GONE;
   const linkOnly = !p.repository;
-  if (linkOnly && !p.grok_bot_addable && states.every((s) => s !== "alive"))
-    return ARCHIVED;
+  if (linkOnly && states.every((s) => s !== "alive")) return ARCHIVED;
   return null;
 }
 
