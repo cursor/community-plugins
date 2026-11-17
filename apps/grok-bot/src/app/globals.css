@@ -108,25 +108,31 @@ img {
     opacity 0.15s,
     background 0.15s;
 }
-.btn:hover {
-  opacity: 0.86;
+@media (hover: hover) {
+  .btn:hover {
+    opacity: 0.86;
+  }
 }
 .btn-gray {
   background: var(--pill);
   color: var(--fg);
 }
-.btn-gray:hover {
-  background: var(--pill-hover);
-  opacity: 1;
+@media (hover: hover) {
+  .btn-gray:hover {
+    background: var(--pill-hover);
+    opacity: 1;
+  }
 }
 .btn-outline {
   background: transparent;
   color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--border);
 }
-.btn-outline:hover {
-  background: var(--pill);
-  opacity: 1;
+@media (hover: hover) {
+  .btn-outline:hover {
+    background: var(--pill);
+    opacity: 1;
+  }
 }
 .btn-lg {
   height: 44px;
@@ -140,11 +146,15 @@ img {
 }
 /* .btn:hover fades the whole button, which would fade its tooltip too;
    these buttons darken their background instead, to the same look. */
-.btn.has-tooltip:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .btn.has-tooltip:hover {
+    opacity: 1;
+  }
 }
-.btn.has-tooltip:not(.btn-gray):not(.btn-outline):hover {
-  background: color-mix(in oklab, var(--primary) 86%, var(--bg));
+@media (hover: hover) {
+  .btn.has-tooltip:not(.btn-gray):not(.btn-outline):hover {
+    background: color-mix(in oklab, var(--primary) 86%, var(--bg));
+  }
 }
 .has-tooltip::after {
   content: attr(data-tooltip);
@@ -169,11 +179,17 @@ img {
     opacity 150ms ease,
     transform 150ms ease;
 }
-.has-tooltip:hover::after,
 .has-tooltip:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
   transition-delay: 300ms;
+}
+@media (hover: hover) {
+  .has-tooltip:hover::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    transition-delay: 300ms;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .has-tooltip::after {
@@ -203,8 +219,10 @@ img {
   gap: 6px;
   transition: background 0.15s;
 }
-.chip:hover {
-  background: var(--pill-hover);
+@media (hover: hover) {
+  .chip:hover {
+    background: var(--pill-hover);
+  }
 }
 .chip.on {
   background: var(--primary);
@@ -334,9 +352,13 @@ img {
   color: var(--muted);
   transition: color 0.15s;
 }
-.nav a:hover,
 .nav a.active {
   color: var(--fg);
+}
+@media (hover: hover) {
+  .nav a:hover {
+    color: var(--fg);
+  }
 }
 .header-actions {
   display: none;
@@ -452,8 +474,10 @@ img {
   justify-content: center;
   color: var(--fg);
 }
-.announce:hover .arrow {
-  background: var(--pill-hover);
+@media (hover: hover) {
+  .announce:hover .arrow {
+    background: var(--pill-hover);
+  }
 }
 .hero-title {
   display: flex;
@@ -635,9 +659,11 @@ img {
   background: transparent;
   color: var(--muted);
 }
-.icon-btn:hover {
-  background: var(--pill-hover);
-  color: var(--fg);
+@media (hover: hover) {
+  .icon-btn:hover {
+    background: var(--pill-hover);
+    color: var(--fg);
+  }
 }
 /* Inline chips in a balanced block, so wrapped rows come out even instead of
    leaving one chip alone on the last row. */
@@ -727,8 +753,10 @@ img {
   cursor: pointer;
   transition: background 0.15s;
 }
-.row:hover {
-  background: var(--card);
+@media (hover: hover) {
+  .row:hover {
+    background: var(--card);
+  }
 }
 .rank {
   font-family: var(--font-mono);
@@ -835,8 +863,10 @@ img {
   color: var(--fg);
   margin-bottom: 32px;
 }
-.back:hover {
-  color: var(--muted);
+@media (hover: hover) {
+  .back:hover {
+    color: var(--muted);
+  }
 }
 .detail .bot-with-avatar .bot {
   width: 96px;
@@ -859,9 +889,11 @@ img {
 .byline a {
   color: var(--fg);
 }
-.byline a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) {
+  .byline a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 .detail-desc {
   margin: 16px 0 24px;
@@ -926,8 +958,10 @@ img {
   font-size: 15px;
   transition: color 150ms ease;
 }
-.admin-tabs a:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .admin-tabs a:hover {
+    color: var(--fg);
+  }
 }
 .admin-tabs a.on {
   color: var(--fg);
@@ -1032,9 +1066,11 @@ img {
 .sub-meta a {
   color: var(--fg);
 }
-.sub-meta a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) {
+  .sub-meta a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 .sub-note {
   margin-top: 12px;
@@ -1084,8 +1120,10 @@ img {
   display: inline-flex;
   border-radius: 999px;
 }
-.avatar-link:hover {
-  box-shadow: 0 0 0 3px var(--pill);
+@media (hover: hover) {
+  .avatar-link:hover {
+    box-shadow: 0 0 0 3px var(--pill);
+  }
 }
 .list-rows > div {
   display: flex;
@@ -1371,8 +1409,10 @@ img {
   cursor: pointer;
   transition: opacity 0.15s;
 }
-.mc-copy:hover {
-  opacity: 0.85;
+@media (hover: hover) {
+  .mc-copy:hover {
+    opacity: 0.85;
+  }
 }
 .mc-copy:focus-visible {
   outline: 2px solid var(--fg);
@@ -1564,8 +1604,10 @@ img {
   text-underline-offset: 2px;
   transition: color 0.15s;
 }
-.submit-preview .meta a:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .submit-preview .meta a:hover {
+    color: var(--fg);
+  }
 }
 .submit-preview .meta code {
   font-family: var(--font-mono);
@@ -1736,9 +1778,11 @@ img {
 .auth-alt a {
   color: var(--fg);
 }
-.auth-alt a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) {
+  .auth-alt a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 .auth-terms {
   position: absolute;
@@ -1840,8 +1884,10 @@ img {
   font-size: 13px;
   color: var(--muted);
 }
-.cols a:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .cols a:hover {
+    color: var(--fg);
+  }
 }
 .theme-toggle {
   display: inline-flex;
@@ -2002,9 +2048,13 @@ img {
   width: 44px;
   height: 44px;
 }
-.row:hover,
 .row:focus-visible {
   --surface: var(--card);
+}
+@media (hover: hover) {
+  .row:hover {
+    --surface: var(--card);
+  }
 }
 .sub,
 .review,
@@ -2148,8 +2198,10 @@ img {
   color: var(--muted);
   width: fit-content;
 }
-.history summary:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .history summary:hover {
+    color: var(--fg);
+  }
 }
 .history ol {
   list-style: none;
@@ -2168,9 +2220,11 @@ img {
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
-.review .sub-top h2 a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) {
+  .review .sub-top h2 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 .user-menu {
   position: relative;
@@ -2217,9 +2271,11 @@ img {
   border-radius: 8px;
   font-size: 14px;
 }
-.user-menu .menu a:hover,
-.user-menu .menu button:hover {
-  background: var(--pill);
+@media (hover: hover) {
+  .user-menu .menu a:hover,
+  .user-menu .menu button:hover {
+    background: var(--pill);
+  }
 }
 
 /* Opening springs out of the avatar's corner and the items follow one after
@@ -2297,8 +2353,10 @@ img {
   display: inline-flex;
   border-radius: 999px;
 }
-.avatar-link:hover {
-  box-shadow: 0 0 0 3px var(--pill);
+@media (hover: hover) {
+  .avatar-link:hover {
+    box-shadow: 0 0 0 3px var(--pill);
+  }
 }
 .empty-bot {
   width: 104px;
@@ -2334,7 +2392,74 @@ fieldset.chips {
   color: var(--fg);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
-.sub-top h2 a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+@media (hover: hover) {
+  .sub-top h2 a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* Touch screens. */
+@media (pointer: coarse) {
+  /* iPhones zoom the page into any field whose text is under 16px. */
+  :root input,
+  :root textarea,
+  :root select {
+    font-size: 16px;
+  }
+
+  /* Controls sized for a mouse pointer are hard to hit with a thumb. */
+  .btn-sm {
+    height: 36px;
+    padding: 0 16px;
+  }
+  .seg a,
+  .seg button {
+    height: 36px;
+    padding: 0 14px;
+  }
+  .directory-tabs .seg > a {
+    height: 40px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .theme-toggle button {
+    padding: 11px;
+  }
+  /* The icon stays where it was; only the area around it grows. */
+  .mobile-toggle {
+    padding: 11px;
+    margin-right: -5px;
+  }
+  .mobile-who button {
+    padding: 12px 0 12px 16px;
+  }
+  .back {
+    padding: 10px 0;
+    margin-top: -10px;
+    margin-bottom: 22px;
+  }
+  .section-head a {
+    padding: 10px 0 10px 16px;
+    margin: -10px 0;
+  }
+}
+
+/* With no hover, a tap still needs to show it landed. */
+@media (hover: none) {
+  .row {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .row:active {
+    --surface: var(--card);
+    background: var(--card);
+  }
+  .chip:not(.on):active {
+    background: var(--pill-hover);
+  }
+  .btn:active {
+    opacity: 0.86;
+  }
 }
