@@ -15,7 +15,7 @@ const SEARCH_DEBOUNCE_MS = 150;
 const PAGE_SIZE = 60;
 // Every app is fetched this long after the list appears, so it's there by
 // the time someone searches, picks a category or asks for more.
-const PRELOAD_AFTER_MS = 800;
+const PRELOAD_AFTER_MS = 300;
 
 // One fetch for the visit, however often the list is shown: /api/apps is
 // large, and switching tabs remounts the list.
