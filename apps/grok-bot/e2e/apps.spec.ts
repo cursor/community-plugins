@@ -37,6 +37,46 @@ test.describe("apps", () => {
     }
   });
 
+  test("the Apps tab arrives with the first rows and loads the rest on demand", async ({
+    page,
+  }) => {
+    // Every app is only fetched (from /api/apps) to search or show more.
+    const fetches: string[] = [];
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/apps") fetches.push(r.url());
+    });
+    await page.goto("/?tab=apps&category=PRODUCTIVITY");
+    await expect(
+      page.getByRole("button", { name: "Productivity" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const official = page.getByTestId("official-apps");
+    const total = Number(
+      (await official.locator(".section-count").textContent()) ?? "0",
+    );
+    const rows = official.getByTestId("app-row");
+    await expect(rows).toHaveCount(Math.min(total, 60));
+    expect(fetches).toHaveLength(0);
+
+    // Another category comes from the server too, still without every app.
+    await page.getByRole("button", { name: "Payments" }).click();
+    await expect(page).toHaveURL(/category=PAYMENTS/);
+    await expect(
+      page.getByRole("button", { name: "Payments" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(fetches).toHaveLength(0);
+
+    // Show more needs the rest. The seeded marketplace has more than a page
+    // of official apps; a bare database doesn't, and has no button.
+    await page.goto("/?tab=apps");
+    const all = Number(
+      (await official.locator(".section-count").textContent()) ?? "0",
+    );
+    test.skip(all <= 60, "needs more than one page of official apps");
+    await official.getByRole("button", { name: /^Show more/ }).click();
+    await expect(rows).toHaveCount(Math.min(all, 120));
+    expect(fetches).toHaveLength(1);
+  });
+
   test("an official app adds to Grok Bot from its marketplace page", async ({
     page,
   }) => {

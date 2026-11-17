@@ -6,8 +6,9 @@ import { HeroCta } from "@/components/hero-cta";
 import { HomeIntro, IntroWord } from "@/components/home-intro";
 import { Segmented } from "@/components/segmented";
 import { RowsSkeleton } from "@/components/skeletons";
-import { type DirectoryApp, listApps, toAppListItem } from "@/data/apps";
+import { type AppsFirstPage, firstAppsPage } from "@/data/apps";
 import { type DirectoryBot, listListedBots } from "@/data/bots";
+import { appCategoryLabel } from "@/lib/app-categories";
 import { formatCount } from "@/lib/format";
 
 // Listings and install counts change constantly; render per request.
@@ -19,14 +20,20 @@ const FALLBACK_COPY = {
 };
 
 type Tab = keyof typeof FALLBACK_COPY;
-type Props = { searchParams: Promise<{ tab?: string }> };
+type Props = { searchParams: Promise<{ tab?: string; category?: string }> };
 
 // The hero renders at once so its intro plays from the first paint; only the
 // count line and the directory wait for the listings.
 export default async function HomePage({ searchParams }: Props) {
-  const tab: Tab = (await searchParams).tab === "apps" ? "apps" : "bots";
+  const { tab: rawTab, category: rawCategory } = await searchParams;
+  const tab: Tab = rawTab === "apps" ? "apps" : "bots";
+  // Only a category the directory knows reaches the query.
+  const category =
+    rawCategory && appCategoryLabel(rawCategory) ? rawCategory : "";
   const bots = tab === "bots" ? listListedBots() : null;
-  const apps = tab === "apps" ? listApps() : null;
+  // The first rows only; the browser fetches the rest when it's asked for.
+  const apps =
+    tab === "apps" ? firstAppsPage({ category: category || null }) : null;
   return (
     <div className="shell start">
       <HomeIntro>
@@ -87,7 +94,7 @@ export default async function HomePage({ searchParams }: Props) {
             }
           >
             {bots ? <BotDirectory bots={bots} /> : null}
-            {apps ? <AppList apps={apps} /> : null}
+            {apps ? <AppList apps={apps} category={category} /> : null}
           </Suspense>
         </div>
       </HomeIntro>
@@ -106,12 +113,12 @@ async function BotCopy({ bots }: { bots: Promise<DirectoryBot[]> }) {
   );
 }
 
-async function AppCopy({ apps }: { apps: Promise<DirectoryApp[]> }) {
-  const list = await apps;
+async function AppCopy({ apps }: { apps: Promise<AppsFirstPage> }) {
+  const { allTotal } = await apps;
   return (
     <p className="hero-copy">
-      {list.length > 0
-        ? `${formatCount(list.length)} apps that give your bots new tools and skills`
+      {allTotal > 0
+        ? `${formatCount(allTotal)} apps that give your bots new tools and skills`
         : FALLBACK_COPY.apps}
     </p>
   );
@@ -121,25 +128,14 @@ async function BotDirectory({ bots }: { bots: Promise<DirectoryBot[]> }) {
   return <Directory bots={await bots} />;
 }
 
-// Apps aren't ranked, so each visit gets a fresh order (official apps still
-// come first). Shuffled here, on the server, so hydration sees the same order.
-function shuffle<T>(list: T[]): T[] {
-  const out = [...list];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
-async function AppList({ apps }: { apps: Promise<DirectoryApp[]> }) {
-  const list = (await apps).map(toAppListItem);
-  return (
-    <AppDirectory
-      apps={[
-        ...shuffle(list.filter((a) => a.marketplaceId)),
-        ...shuffle(list.filter((a) => !a.marketplaceId)),
-      ]}
-    />
-  );
+// Apps aren't ranked, so each visit gets a fresh pick (official apps still
+// come first). The database picks it, so hydration sees the same order.
+async function AppList({
+  apps,
+  category,
+}: {
+  apps: Promise<AppsFirstPage>;
+  category: string;
+}) {
+  return <AppDirectory first={await apps} firstCategory={category} />;
 }

@@ -122,7 +122,60 @@ function toApp(row: AppRow): DirectoryApp {
   };
 }
 
-/** Official apps first, then community apps, alphabetical within each. */
+export type AppsFirstPage = {
+  official: AppListItem[];
+  community: AppListItem[];
+  /** How many there are in all, in the category when one was asked for. */
+  officialTotal: number;
+  communityTotal: number;
+  /** Every app, whatever the category. */
+  allTotal: number;
+};
+
+/**
+ * The first rows of the Apps list: a random pick of official and of
+ * community apps with the totals, so a page doesn't load every app to show
+ * a few (`grok_bot_apps_first_page()` in SQL).
+ */
+export async function firstAppsPage({
+  limit = 60,
+  category = null,
+  exclude = null,
+}: {
+  limit?: number;
+  category?: string | null;
+  exclude?: string | null;
+} = {}): Promise<AppsFirstPage> {
+  const admin = await createAdminClient();
+  const { data, error } = await admin.rpc("grok_bot_apps_first_page", {
+    p_limit: limit,
+    p_category: category,
+    p_exclude: exclude,
+  });
+  if (error) throw error;
+  const page = (data ?? {}) as {
+    official?: AppRow[];
+    community?: AppRow[];
+    official_total?: number;
+    community_total?: number;
+    all_total?: number;
+  };
+  const rows = (list: AppRow[] | undefined) =>
+    (list ?? []).map((row) => toAppListItem(toApp(row)));
+  return {
+    official: rows(page.official),
+    community: rows(page.community),
+    officialTotal: Number(page.official_total ?? 0),
+    communityTotal: Number(page.community_total ?? 0),
+    allTotal: Number(page.all_total ?? 0),
+  };
+}
+
+/**
+ * Every app: official first, then community, alphabetical within each. It's
+ * several megabytes; pages use firstAppsPage and the browser fetches this
+ * (through /api/apps) only to search or show more.
+ */
 export async function listApps(): Promise<DirectoryApp[]> {
   const admin = await createAdminClient();
   const { data, error } = await admin.rpc("list_grok_bot_apps_json");

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppLogo } from "@/components/app-logo";
 import { AppRow } from "@/components/app-row";
-import { getApp, listApps } from "@/data/apps";
+import { firstAppsPage, getApp } from "@/data/apps";
 import {
   appCategoryLabel,
   appContents,
@@ -55,11 +55,12 @@ export default async function AppPage({ params }: Props) {
   const app = await getApp((await params).slug);
   if (!app) notFound();
   const category = primaryAppCategory(app.categories);
-  const related = category
-    ? (await listApps())
-        .filter((a) => a.categories.includes(category) && a.id !== app.id)
-        .slice(0, 3)
-    : [];
+  // Three others in its category: official ones first, a fresh pick each
+  // visit.
+  const more = category
+    ? await firstAppsPage({ limit: 3, category, exclude: app.id })
+    : null;
+  const related = more ? [...more.official, ...more.community].slice(0, 3) : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
   // One message adding every server and skill; only when all of them can be
   // read, so the agent isn't left adding half an app.
@@ -242,7 +243,7 @@ export default async function AppPage({ params }: Props) {
             </Link>
           </div>
           {related.map((a) => (
-            <AppRow key={a.id} app={a} />
+            <AppRow key={a.slug} app={a} />
           ))}
         </div>
       )}
