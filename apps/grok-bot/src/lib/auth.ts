@@ -3,12 +3,15 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { createClient } from "@/utils/supabase/server";
+import { xHandleOf } from "./x-profile";
 
 export type Viewer = {
   id: string;
   name: string;
   image: string | null;
   slug: string;
+  /** Which account this is, for the account menu: an X handle or an email. */
+  account: string | null;
 };
 
 /** The signed-in member with their shared cursor.directory profile, or null. */
@@ -18,6 +21,7 @@ export async function getViewer(): Promise<Viewer | null> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+  const handle = xHandleOf(user);
   const { data: profile } = await supabase
     .from("users")
     .select("name, image, slug")
@@ -28,6 +32,7 @@ export async function getViewer(): Promise<Viewer | null> {
     name: profile?.name ?? user.email ?? "Member",
     image: profile?.image ?? null,
     slug: profile?.slug ?? "",
+    account: handle ? `@${handle}` : (user.email ?? null),
   };
 }
 

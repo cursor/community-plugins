@@ -2,7 +2,7 @@
 
 import Fuse from "fuse.js";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryBot } from "@/data/bots";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
@@ -33,7 +33,6 @@ function metricFor(b: DirectoryBot, sort: Sort): number {
 }
 
 export function Directory({ bots }: { bots: DirectoryBot[] }) {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const [search, setSearch] = useState(params.get("q") ?? "");
@@ -41,13 +40,15 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
   const [sort, setSort] = useState<Sort>("trending");
 
   // Keep q and category in the URL (shareable, survives Back) without a
-  // history entry per keystroke.
+  // history entry per keystroke. The list is filtered here, so the URL is
+  // rewritten in place: going through the router would ask the server for
+  // the page again and hold the filter back until it answered.
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
     const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
   };
 
   // The input updates at once; the list and URL follow after a short pause.

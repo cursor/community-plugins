@@ -378,6 +378,43 @@ img {
 .mobile-menu .btn {
   margin-top: 16px;
 }
+/* Who is signed in, with the way out, under the links. */
+.mobile-who {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+}
+.mobile-who .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mobile-who button {
+  flex-shrink: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.who-name,
+.who-account {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.who-account {
+  font-size: 13px;
+  color: var(--muted);
+}
 
 /* Hero (x.ai/bot: announcement pill, headline with inline mark) */
 .start {
@@ -1919,6 +1956,19 @@ img {
   text-align: center;
 }
 
+/* In the page's text for readers and crawlers, but not drawn. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Bot art: brand-tool Grok Bot faces (public/bots) used as CSS masks and
    tinted with the bot's ink, so any template color works from one file. */
 .bot-art {
@@ -2143,6 +2193,16 @@ img {
 .user-menu .menu form {
   display: contents;
 }
+/* Who is signed in, above the actions, ruled off edge to edge. */
+.user-menu .menu-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 260px;
+  margin: 0 -6px 6px;
+  padding: 6px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
 .user-menu .menu a,
 .user-menu .menu button {
   display: block;
@@ -2183,6 +2243,7 @@ img {
     transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
     visibility 0s;
 }
+.user-menu .menu-who,
 .user-menu .menu a,
 .user-menu .menu button {
   opacity: 0;
@@ -2192,6 +2253,7 @@ img {
     opacity 80ms ease-in,
     translate 100ms ease-in;
 }
+.user-menu .menu[data-open="true"] .menu-who,
 .user-menu .menu[data-open="true"] a,
 .user-menu .menu[data-open="true"] button {
   opacity: 1;
@@ -2213,6 +2275,7 @@ img {
 @media (prefers-reduced-motion: reduce) {
   .user-menu .menu,
   .user-menu .menu[data-open="true"],
+  .user-menu .menu-who,
   .user-menu .menu a,
   .user-menu .menu button {
     transform: none;

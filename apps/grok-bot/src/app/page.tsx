@@ -53,6 +53,8 @@ export default async function HomePage({ searchParams }: Props) {
             </span>
             <IntroWord i={2}>
               <HeroBot />
+              {/* The bot stands in for the word; this keeps it in the text. */}
+              <span className="sr-only"> bot </span>
             </IntroWord>
             <span>
               <IntroWord i={3}>for</IntroWord>{" "}

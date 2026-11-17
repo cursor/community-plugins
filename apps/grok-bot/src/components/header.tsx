@@ -27,12 +27,20 @@ export async function Header({ viewer }: { viewer: Viewer | null }) {
         </nav>
         <div className="header-actions">
           {viewer ? (
-            <UserMenu name={viewer.name} image={viewer.image} admin={admin} />
+            <UserMenu
+              name={viewer.name}
+              account={viewer.account}
+              image={viewer.image}
+              admin={admin}
+            />
           ) : (
             <SignInLink />
           )}
         </div>
-        <MobileMenu signedIn={!!viewer} admin={admin} />
+        <MobileMenu
+          viewer={viewer && { name: viewer.name, account: viewer.account }}
+          admin={admin}
+        />
       </div>
     </header>
   );

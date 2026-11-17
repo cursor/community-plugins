@@ -31,12 +31,26 @@ export function SignInLink() {
   );
 }
 
+/** Who is signed in. A name that is already the email isn't said twice. */
+function Who({ name, account }: { name: string; account: string | null }) {
+  return (
+    <>
+      <span className="who-name">{name}</span>
+      {account && account !== name && (
+        <span className="who-account">{account}</span>
+      )}
+    </>
+  );
+}
+
 export function UserMenu({
   name,
+  account,
   image,
   admin,
 }: {
   name: string;
+  account: string | null;
   image: string | null;
   admin: boolean;
 }) {
@@ -76,25 +90,29 @@ export function UserMenu({
         inert={!open}
         aria-hidden={!open}
       >
-        <Link href="/my-bots" role="menuitem" style={nth(0)}>
+        <div className="menu-who" data-testid="menu-who" style={nth(0)}>
+          <Who name={name} account={account} />
+        </div>
+        <Link href="/my-bots" role="menuitem" style={nth(1)}>
           Your submissions
         </Link>
         {admin && (
-          <Link href="/admin" role="menuitem" style={nth(1)}>
+          <Link href="/admin" role="menuitem" style={nth(2)}>
             Admin
           </Link>
         )}
-        <SignOutButton style={nth(admin ? 2 : 1)} />
+        <SignOutButton style={nth(admin ? 3 : 2)} />
       </div>
     </div>
   );
 }
 
 export function MobileMenu({
-  signedIn,
+  viewer,
   admin,
 }: {
-  signedIn: boolean;
+  /** The signed-in member, or null. */
+  viewer: { name: string; account: string | null } | null;
   admin: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -133,12 +151,22 @@ export function MobileMenu({
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>
-          {signedIn ? (
+          {viewer ? (
             <Link href="/my-bots">Your submissions</Link>
           ) : (
             pathname !== "/login" && <Link href="/login">Sign in</Link>
           )}
           {admin && <Link href="/admin">Admin</Link>}
+          {viewer && (
+            <div className="mobile-who" data-testid="mobile-who">
+              <span className="who">
+                <Who name={viewer.name} account={viewer.account} />
+              </span>
+              <form action="/auth/sign-out" method="post">
+                <button type="submit">Sign out</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
     </>
