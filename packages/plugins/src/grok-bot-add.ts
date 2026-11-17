@@ -181,3 +181,72 @@ export async function refreshGrokBotAddable(
     throw new Error(`Saving grok_bot_addable failed: ${updateError.message}`);
   return addable;
 }
+
+// The hosted Data API returns at most 100 rows per request.
+const PAGE = 100;
+
+export type RefreshSummary = {
+  plugins: number;
+  /** Among active plugins. */
+  addable: number;
+  notAddable: number;
+  /** Plugins whose stored answer was wrong. */
+  becameAddable: number;
+  stoppedBeingAddable: number;
+};
+
+/**
+ * Recomputes `plugins.grok_bot_addable` for every plugin. The column is kept
+ * up to date as plugins change; this fills it in the first time and repairs
+ * it after the rule or the stored setups change.
+ */
+export async function refreshAllGrokBotAddable(
+  supabase: SupabaseClient,
+  { dryRun = false }: { dryRun?: boolean } = {},
+): Promise<RefreshSummary> {
+  const change: Record<"true" | "false", string[]> = { true: [], false: [] };
+  const summary: RefreshSummary = {
+    plugins: 0,
+    addable: 0,
+    notAddable: 0,
+    becameAddable: 0,
+    stoppedBeingAddable: 0,
+  };
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("plugins")
+      .select(
+        "id, slug, active, marketplace_plugin_id, grok_bot_addable, plugin_components(type, name, slug, content, metadata)",
+      )
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`Reading plugins failed: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      summary.plugins++;
+      const addable = grokBotAddable({
+        slug: row.slug,
+        marketplace_plugin_id: row.marketplace_plugin_id,
+        components: (row.plugin_components ?? []) as StoredComponent[],
+      });
+      if (row.active) summary[addable ? "addable" : "notAddable"]++;
+      if (addable !== row.grok_bot_addable)
+        change[addable ? "true" : "false"].push(row.id);
+    }
+  }
+  summary.becameAddable = change.true.length;
+  summary.stoppedBeingAddable = change.false.length;
+  if (dryRun) return summary;
+  for (const value of ["true", "false"] as const) {
+    const ids = change[value];
+    for (let i = 0; i < ids.length; i += PAGE) {
+      const { error } = await supabase
+        .from("plugins")
+        .update({ grok_bot_addable: value === "true" })
+        .in("id", ids.slice(i, i + PAGE));
+      if (error)
+        throw new Error(`Saving grok_bot_addable failed: ${error.message}`);
+    }
+  }
+  return summary;
+}

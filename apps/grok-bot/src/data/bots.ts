@@ -285,7 +285,7 @@ export type ModerationEvent = {
   id: number;
   createdAt: string;
   action: string;
-  source: "web" | "mcp" | "ai";
+  source: "web" | "mcp" | "ai" | "system";
   actor: string | null;
   reason: string | null;
 };

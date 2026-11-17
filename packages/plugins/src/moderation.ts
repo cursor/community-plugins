@@ -24,8 +24,9 @@ export type ModerationAction =
   | "delete";
 
 export type ModerationContext = {
-  actorId: string;
-  source: "web" | "mcp";
+  /** The admin, or null for a scheduled job (`source: "system"`). */
+  actorId: string | null;
+  source: "web" | "mcp" | "system";
   clientId?: string;
   /** A service-role client. */
   db: () => Promise<SupabaseClient>;

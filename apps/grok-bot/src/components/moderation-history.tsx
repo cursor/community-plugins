@@ -22,6 +22,7 @@ const ACTION: Record<string, string> = {
 
 function who(e: ModerationEvent): string {
   if (e.source === "ai") return "AI review";
+  if (e.source === "system") return "Automatic clean-up";
   return `${e.actor ?? "An admin"}${e.source === "mcp" ? " (MCP)" : ""}`;
 }
 

@@ -12,6 +12,14 @@
     {
       "path": "/api/queue/plugin-scans/drain",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/clean-stale-plugins",
+      "schedule": "0 7 * * 1"
+    },
+    {
+      "path": "/api/cron/refresh-grok-bot-addable",
+      "schedule": "30 7 * * 1"
     }
   ]
 }

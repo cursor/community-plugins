@@ -14,6 +14,7 @@
     "./moderation": "./src/moderation.ts",
     "./queue": "./src/queue.ts",
     "./slug": "./src/slug.ts",
+    "./stale": "./src/stale.ts",
     "./types": "./src/types.ts"
   },
   "dependencies": {
