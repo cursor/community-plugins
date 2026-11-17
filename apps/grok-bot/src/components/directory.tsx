@@ -105,6 +105,11 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
       matched.filter((b) => b.category === c.id).length,
     ]),
   );
+  // A category with no bots isn't offered. The one in the URL still is, so
+  // it can be turned off.
+  const shownCategories = CATEGORIES.filter(
+    (c) => c.id === category || bots.some((b) => b.category === c.id),
+  );
   const q = query.toLowerCase();
   const visible = matched
     .filter((b) => !category || b.category === category)
@@ -156,7 +161,7 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
         >
           All
         </button>
-        {CATEGORIES.map((c) => (
+        {shownCategories.map((c) => (
           <button
             key={c.id}
             type="button"
@@ -209,7 +214,7 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
             <SceneBot
               body="blob"
               color="black"
-              face="confused"
+              face="neutral"
               className="empty-bot"
               testId="empty-bot"
             />

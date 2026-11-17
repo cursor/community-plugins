@@ -216,8 +216,13 @@ export function AppDirectory({
     officialTotal = first.officialTotal;
     communityTotal = first.communityTotal;
   }
+  // Once every app is here, a category with none isn't offered. The one in
+  // the URL still is, so it can be turned off.
   const categories = all
-    ? APP_CATEGORIES.filter((c) => all.some((a) => a.categories.includes(c.id)))
+    ? APP_CATEGORIES.filter(
+        (c) =>
+          c.id === category || all.some((a) => a.categories.includes(c.id)),
+      )
     : APP_CATEGORIES;
 
   // The answer isn't here yet: a search or a category chosen before every
@@ -295,7 +300,7 @@ export function AppDirectory({
           <SceneBot
             body="blob"
             color="black"
-            face="confused"
+            face="neutral"
             className="empty-bot"
             testId="empty-bot"
           />

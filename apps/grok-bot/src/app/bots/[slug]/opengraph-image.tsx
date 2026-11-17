@@ -20,7 +20,7 @@ export default async function Image({
   const lockup = await dataUri("brand/lockup-black.svg", "image/svg+xml");
   const face = bot
     ? await botFaceUri(bot.body, bot.color)
-    : await botFaceUri("blob", "black", "confused");
+    : await botFaceUri("blob", "black", "neutral");
   return new ImageResponse(
     <div
       style={{

@@ -8,7 +8,7 @@ export default function NotFound() {
         <BotArt
           body="blob"
           color="black"
-          face="confused"
+          face="neutral"
           className="empty-bot"
         />
         <p>This page doesn’t exist, or the bot isn’t listed.</p>

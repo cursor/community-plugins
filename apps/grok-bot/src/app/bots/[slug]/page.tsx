@@ -8,7 +8,6 @@ import { MemberAvatar } from "@/components/member-avatar";
 import { getListedBot, listListedBots } from "@/data/bots";
 import { categoryLabel } from "@/lib/categories";
 import { formatAdds, formatRelativeDate } from "@/lib/format";
-import { shareUrl } from "@/lib/share-link";
 
 export const dynamic = "force-dynamic";
 
@@ -90,14 +89,6 @@ export default async function BotPage({ params }: Props) {
         >
           Add to Grok Bot
         </AddButton>
-        <a
-          href={shareUrl(bot.shareId)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-lg btn-gray"
-        >
-          View on x.ai ↗
-        </a>
         {formatAdds(bot.installs) && (
           <span className="imports" data-testid="install-count">
             {formatAdds(bot.installs)}
