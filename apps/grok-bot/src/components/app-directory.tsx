@@ -4,7 +4,7 @@ import Fuse from "fuse.js";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DirectoryApp } from "@/data/apps";
+import type { AppListItem } from "@/data/apps";
 import { APP_CATEGORIES, appCategoryLabel } from "@/lib/app-categories";
 import { AppRow } from "./app-row";
 import { SceneBot } from "./bot-art";
@@ -12,7 +12,7 @@ import { SceneBot } from "./bot-art";
 // Filtering (and the ?q= URL update) waits this long after the last keystroke.
 const SEARCH_DEBOUNCE_MS = 150;
 
-export function AppDirectory({ apps }: { apps: DirectoryApp[] }) {
+export function AppDirectory({ apps }: { apps: AppListItem[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -189,7 +189,7 @@ function AppSection({
 }: {
   id: string;
   title: string;
-  apps: DirectoryApp[];
+  apps: AppListItem[];
 }) {
   const [shown, setShown] = useState(PAGE_SIZE);
   return (
@@ -199,7 +199,7 @@ function AppSection({
         <span className="muted section-count">{apps.length}</span>
       </div>
       {apps.slice(0, shown).map((app) => (
-        <AppRow key={app.id} app={app} />
+        <AppRow key={app.slug} app={app} />
       ))}
       {apps.length > shown && (
         <button

@@ -28,6 +28,43 @@ export type DirectoryApp = {
   skills: string[];
 };
 
+/**
+ * What a row in the Apps list shows and searches. The Apps tab sends every
+ * app to the browser, so rows carry only this.
+ */
+export type AppListItem = Pick<
+  DirectoryApp,
+  | "slug"
+  | "name"
+  | "description"
+  | "logo"
+  | "publisher"
+  | "marketplaceId"
+  | "categories"
+  | "mcpServers"
+  | "skills"
+>;
+
+const LIST_DESCRIPTION_CHARS = 200;
+
+export function toAppListItem(app: DirectoryApp): AppListItem {
+  const description =
+    app.description.length > LIST_DESCRIPTION_CHARS
+      ? `${app.description.slice(0, LIST_DESCRIPTION_CHARS).trimEnd()}…`
+      : app.description;
+  return {
+    slug: app.slug,
+    name: app.name,
+    description,
+    logo: app.logo,
+    publisher: app.publisher,
+    marketplaceId: app.marketplaceId,
+    categories: app.categories,
+    mcpServers: app.mcpServers,
+    skills: app.skills,
+  };
+}
+
 export type AppComponent = {
   type: string;
   name: string;

@@ -3,11 +3,11 @@
 import { grokBotPluginUrl } from "@directories/plugins/apps";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { DirectoryApp } from "@/data/apps";
+import type { AppListItem } from "@/data/apps";
 import { appContents } from "@/lib/app-categories";
 import { AppLogo } from "./app-logo";
 
-export function AppRow({ app }: { app: DirectoryApp }) {
+export function AppRow({ app }: { app: AppListItem }) {
   const router = useRouter();
   const href = `/apps/${app.slug}`;
   const contents = appContents(app.mcpServers.length, app.skills.length);

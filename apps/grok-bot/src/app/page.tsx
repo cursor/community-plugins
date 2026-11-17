@@ -6,7 +6,7 @@ import { HeroCta } from "@/components/hero-cta";
 import { HomeIntro, IntroWord } from "@/components/home-intro";
 import { Segmented } from "@/components/segmented";
 import { RowsSkeleton } from "@/components/skeletons";
-import { type DirectoryApp, listApps } from "@/data/apps";
+import { type DirectoryApp, listApps, toAppListItem } from "@/data/apps";
 import { type DirectoryBot, listListedBots } from "@/data/bots";
 import { formatCount } from "@/lib/format";
 
@@ -133,7 +133,7 @@ function shuffle<T>(list: T[]): T[] {
 }
 
 async function AppList({ apps }: { apps: Promise<DirectoryApp[]> }) {
-  const list = await apps;
+  const list = (await apps).map(toAppListItem);
   return (
     <AppDirectory
       apps={[
