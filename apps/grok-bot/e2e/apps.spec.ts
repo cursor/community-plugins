@@ -37,10 +37,11 @@ test.describe("apps", () => {
     }
   });
 
-  test("the Apps tab arrives with the first rows and loads the rest on demand", async ({
+  test("the Apps tab arrives with the first rows and fetches the rest once, behind them", async ({
     page,
   }) => {
-    // Every app is only fetched (from /api/apps) to search or show more.
+    // The page carries the first rows; every app (/api/apps) follows in the
+    // background, once, for search, categories and Show more.
     const fetches: string[] = [];
     page.on("request", (r) => {
       if (new URL(r.url()).pathname === "/api/apps") fetches.push(r.url());
@@ -55,18 +56,27 @@ test.describe("apps", () => {
     );
     const rows = official.getByTestId("app-row");
     await expect(rows).toHaveCount(Math.min(total, 60));
-    expect(fetches).toHaveLength(0);
+    await expect.poll(() => fetches.length).toBe(1);
 
-    // Another category comes from the server too, still without every app.
+    // Another category is filtered in the browser: the URL follows, and
+    // neither the page nor the list is fetched again.
+    const pages: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("_rsc=") && new URL(r.url()).pathname === "/")
+        pages.push(r.url());
+    });
     await page.getByRole("button", { name: "Payments" }).click();
     await expect(page).toHaveURL(/category=PAYMENTS/);
     await expect(
       page.getByRole("button", { name: "Payments" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(fetches).toHaveLength(0);
+    await expect(page.getByTestId("apps-pending")).toHaveCount(0);
+    expect(fetches).toHaveLength(1);
+    expect(pages).toHaveLength(0);
 
-    // Show more needs the rest. The seeded marketplace has more than a page
-    // of official apps; a bare database doesn't, and has no button.
+    // Show more comes from the same list. The seeded marketplace has more
+    // than a page of official apps; a bare database doesn't, and has no
+    // button.
     await page.goto("/?tab=apps");
     const all = Number(
       (await official.locator(".section-count").textContent()) ?? "0",
@@ -74,7 +84,44 @@ test.describe("apps", () => {
     test.skip(all <= 60, "needs more than one page of official apps");
     await official.getByRole("button", { name: /^Show more/ }).click();
     await expect(rows).toHaveCount(Math.min(all, 120));
-    expect(fetches).toHaveLength(1);
+    expect(fetches).toHaveLength(2);
+  });
+
+  test("switching between Bots and Apps asks the server for nothing", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("bot-row").first()).toBeVisible();
+    const pages: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("_rsc=") && new URL(r.url()).pathname === "/")
+        pages.push(r.url());
+    });
+    const tabs = page.getByRole("tablist", { name: "Directory" });
+
+    await tabs.getByRole("tab", { name: "Apps" }).click();
+    await expect(page).toHaveURL(/\?tab=apps$/);
+    await expect(page.getByTestId("app-row").first()).toBeVisible();
+    await expect(page.getByTestId("bot-row").first()).toBeHidden();
+    await expect(page).toHaveTitle(/^Apps for Grok Bot/);
+    await expect(
+      page.getByRole("link", { name: "Submit an app" }).first(),
+    ).toBeVisible();
+
+    // The header's links switch the same way, and Back returns.
+    await page
+      .getByRole("banner")
+      .getByRole("link", { name: "Bots", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByTestId("bot-row").first()).toBeVisible();
+    await expect(page.getByTestId("app-row").first()).toBeHidden();
+    await page.goBack();
+    await expect(page.getByTestId("app-row").first()).toBeVisible();
+
+    expect(pages).toHaveLength(0);
+    // Nothing stands in for rows while they load, anywhere on the page.
+    await expect(page.locator(".skeleton-rows, .sk")).toHaveCount(0);
   });
 
   test("an official app adds to Grok Bot from its marketplace page", async ({

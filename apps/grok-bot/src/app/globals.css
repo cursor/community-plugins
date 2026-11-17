@@ -1614,46 +1614,6 @@ img {
   font-size: 12px;
 }
 /* Placeholder in the preview's spot until a bot is read; shimmers while reading. */
-.submit-skeleton {
-  --sk: color-mix(in oklab, var(--fg) 7%, transparent);
-  --sk-hi: color-mix(in oklab, var(--fg) 13%, transparent);
-}
-.submit-skeleton .sk {
-  display: block;
-  background: var(--sk);
-  border-radius: 999px;
-}
-.submit-skeleton .sk-mark {
-  width: 64px;
-  height: 64px;
-  flex-shrink: 0;
-  border-radius: 50%;
-}
-.submit-skeleton .sk-lines {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 6px;
-}
-.submit-skeleton .sk-title {
-  height: 16px;
-  width: 45%;
-  margin-bottom: 4px;
-}
-.submit-skeleton .sk-line {
-  height: 10px;
-}
-.submit-skeleton .sk-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-}
-.submit-skeleton .sk-meta {
-  height: 10px;
-  width: 46%;
-}
 /* Before a link is read: just an outline of where the bot will appear (nothing is loading). */
 /* Same structure as the real preview card, drawn as outlines only. */
 /* Resting card before a link is pasted: just an outlined Grok Bot. */
@@ -1676,26 +1636,6 @@ img {
   stroke: var(--ol, currentColor);
   stroke-width: 21.5px;
   stroke-linejoin: round;
-}
-.submit-skeleton.loading .sk {
-  background:
-    linear-gradient(90deg, var(--sk) 0%, var(--sk-hi) 50%, var(--sk) 100%) 0 0 /
-    300% 100%;
-  animation: sk-shimmer 1.3s ease-in-out infinite;
-}
-@keyframes sk-shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .submit-skeleton.loading .sk {
-    animation: none;
-    background: var(--sk-hi);
-  }
 }
 
 /* Sign in: a centered stack after baby-sand's SignInScene (mark beside the title,
@@ -2156,39 +2096,6 @@ img {
   padding-left: 18px;
   color: var(--muted);
 }
-/* Route loading skeletons (src/components/skeletons.tsx), sharing the
-   submit page's shimmer. */
-.skeleton-rows {
-  --sk: color-mix(in oklab, var(--fg) 7%, transparent);
-  --sk-hi: color-mix(in oklab, var(--fg) 13%, transparent);
-  display: flex;
-  flex-direction: column;
-}
-.skeleton-rows .sk {
-  display: block;
-  background:
-    linear-gradient(90deg, var(--sk) 0%, var(--sk-hi) 50%, var(--sk) 100%) 0 0 /
-    300% 100%;
-  animation: sk-shimmer 1.3s ease-in-out infinite;
-}
-.skeleton-row {
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 12px 0;
-}
-.skeleton-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-rows .sk {
-    animation: none;
-    background: var(--sk-hi);
-  }
-}
 .history {
   margin-top: 12px;
   font-size: 13px;
@@ -2339,6 +2246,17 @@ img {
     transition-property: opacity, visibility;
     transition-delay: 0s;
   }
+}
+
+/* Waiting without placeholders. Rows that haven't arrived leave their space
+   empty; rows whose replacement is on its way dim where they stand. */
+.list-pending {
+  min-height: 60vh;
+}
+.is-pending {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s;
 }
 
 /* App-only bits */

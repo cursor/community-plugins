@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { MemberAvatar } from "./member-avatar";
 
 const GUIDES_URL = "https://x.ai/bot/guides";
@@ -19,6 +26,40 @@ function SignOutButton({ style }: { style?: CSSProperties }) {
 
 /** Position in the menu, for the staggered entrance (`--i` in CSS). */
 const nth = (i: number) => ({ "--i": i }) as CSSProperties;
+
+/**
+ * Switches the home page's tab where the page stands when a link to it is
+ * clicked on the home page, which already holds both tabs (home-directory.tsx);
+ * anywhere else, and for a click that opens a new tab, the link navigates.
+ */
+function switchTabInPlace(
+  e: MouseEvent<HTMLAnchorElement>,
+  pathname: string,
+  href: string,
+): boolean {
+  const plain =
+    e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+  if (pathname !== "/" || !plain) return false;
+  e.preventDefault();
+  window.history.pushState(null, "", href);
+  return true;
+}
+
+/** A header link to the home page's Bots or Apps tab. */
+export function TabLink({
+  href,
+  children,
+}: {
+  href: "/" | "/?tab=apps";
+  children: ReactNode;
+}) {
+  const pathname = usePathname();
+  return (
+    <Link href={href} onClick={(e) => switchTabInPlace(e, pathname, href)}>
+      {children}
+    </Link>
+  );
+}
 
 /** Hidden on the sign-in page itself. */
 export function SignInLink() {
@@ -146,8 +187,23 @@ export function MobileMenu({
       </button>
       {open && (
         <div className="mobile-menu">
-          <Link href="/">Bots</Link>
-          <Link href="/?tab=apps">Apps</Link>
+          {(
+            [
+              ["/", "Bots"],
+              ["/?tab=apps", "Apps"],
+            ] as const
+          ).map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={(e) => {
+                // The page doesn't change, so nothing else closes the menu.
+                if (switchTabInPlace(e, pathname, href)) setOpen(false);
+              }}
+            >
+              {label}
+            </Link>
+          ))}
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>

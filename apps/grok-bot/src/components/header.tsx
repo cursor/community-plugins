@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { isAdmin, type Viewer } from "@/lib/auth";
-import { MobileMenu, SignInLink, UserMenu } from "./header-menus";
+import { MobileMenu, SignInLink, TabLink, UserMenu } from "./header-menus";
 import { Lockup } from "./theme";
 
 export const GUIDES_URL = "https://x.ai/bot/guides";
@@ -19,8 +19,8 @@ export async function Header({ viewer }: { viewer: Viewer | null }) {
           <span className="logo-sub">Directory</span>
         </Link>
         <nav className="nav">
-          <Link href="/">Bots</Link>
-          <Link href="/?tab=apps">Apps</Link>
+          <TabLink href="/">Bots</TabLink>
+          <TabLink href="/?tab=apps">Apps</TabLink>
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>

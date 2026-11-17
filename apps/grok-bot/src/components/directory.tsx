@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryBot } from "@/data/bots";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import { formatAddCount, formatRelativeDate } from "@/lib/format";
+import { useHeld } from "@/lib/use-held";
 import { SceneBot } from "./bot-art";
 import { BotRow } from "./bot-row";
 import { Segmented } from "./segmented";
@@ -35,8 +36,11 @@ function metricFor(b: DirectoryBot, sort: Sort): number {
 export function Directory({ bots }: { bots: DirectoryBot[] }) {
   const pathname = usePathname();
   const params = useSearchParams();
-  const [search, setSearch] = useState(params.get("q") ?? "");
-  const category = params.get("category") ?? "";
+  // The home page keeps this list mounted while the Apps tab shows; the URL
+  // is the Apps tab's then.
+  const live = params.get("tab") !== "apps";
+  const [search, setSearch] = useState(live ? (params.get("q") ?? "") : "");
+  const category = useHeld(params.get("category") ?? "", live);
   const [sort, setSort] = useState<Sort>("trending");
 
   // Keep q and category in the URL (shareable, survives Back) without a
@@ -55,6 +59,13 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
   const [query, setQuery] = useState(() => search.trim());
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Shown again after the other tab: start from the URL, which the switch
+  // reset. (Effects run again each time a hidden list is shown.)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q") ?? "";
+    setSearch(q);
+    setQuery(q.trim());
+  }, []);
   const onSearch = (value: string) => {
     setSearch(value);
     clearTimeout(timer.current);

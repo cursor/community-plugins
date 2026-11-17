@@ -13,7 +13,7 @@ import {
 export type SegmentedOption<T extends string> = {
   id: T;
   label: ReactNode;
-  /** Makes the option a link (replace navigation); otherwise a button. */
+  /** Makes the option a link (replacing the URL); otherwise a button. */
   href?: string;
 };
 
@@ -28,12 +28,19 @@ export function Segmented<T extends string>({
   onChange,
   label,
   style,
+  inPlace = false,
 }: {
   options: SegmentedOption<T>[];
   value: T;
   onChange?: (id: T) => void;
   label: string;
   style?: CSSProperties;
+  /**
+   * Link options rewrite the URL where the page stands instead of
+   * navigating: for a page that already holds what every option shows and
+   * reads the choice from the URL, so nothing is requested again.
+   */
+  inPlace?: boolean;
 }) {
   const [active, setActive] = useState(value);
   const [prevValue, setPrevValue] = useState(value);
@@ -97,7 +104,18 @@ export function Segmented<T extends string>({
             href={href}
             replace
             {...props}
-            onClick={() => {
+            onClick={(e) => {
+              // A modified click (new tab, new window) is left to the link.
+              const plain =
+                e.button === 0 &&
+                !e.metaKey &&
+                !e.ctrlKey &&
+                !e.shiftKey &&
+                !e.altKey;
+              if (inPlace && plain) {
+                e.preventDefault();
+                window.history.replaceState(null, "", href);
+              }
               setActive(id);
               onChange?.(id);
             }}

@@ -163,27 +163,8 @@ export function SubmitForm({
         </div>
       </div>
 
-      {state.phase === "loading" ? (
-        <div
-          className="submit-preview submit-skeleton loading"
-          data-testid="submit-skeleton"
-          aria-hidden="true"
-        >
-          <div className="head">
-            <span className="sk sk-mark" />
-            <div className="sk-lines">
-              <span className="sk sk-title" />
-              {["100%", "94%", "86%", "48%"].map((w) => (
-                <span key={w} className="sk sk-line" style={{ width: w }} />
-              ))}
-            </div>
-          </div>
-          <div className="meta">
-            <span className="sk sk-avatar" />
-            <span className="sk sk-meta" />
-          </div>
-        </div>
-      ) : preview ? (
+      {/* While a link is read the card keeps its resting outline. */}
+      {state.phase !== "loading" && preview ? (
         <div
           className="submit-preview message-arrive"
           data-testid="submit-preview"

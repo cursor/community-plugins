@@ -2,17 +2,37 @@
 
 import Fuse from "fuse.js";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppListItem, AppsFirstPage } from "@/data/apps";
 import { APP_CATEGORIES, appCategoryLabel } from "@/lib/app-categories";
+import { useHeld } from "@/lib/use-held";
 import { AppRow } from "./app-row";
 import { SceneBot } from "./bot-art";
-import { RowsSkeleton } from "./skeletons";
 
 // Filtering (and the ?q= URL update) waits this long after the last keystroke.
 const SEARCH_DEBOUNCE_MS = 150;
 const PAGE_SIZE = 60;
+// Every app is fetched this long after the list appears, so it's there by
+// the time someone searches, picks a category or asks for more.
+const PRELOAD_AFTER_MS = 800;
+
+// One fetch for the visit, however often the list is shown: /api/apps is
+// large, and switching tabs remounts the list.
+let everyApp: Promise<AppListItem[]> | null = null;
+function fetchEveryApp(): Promise<AppListItem[]> {
+  everyApp ??= fetch("/api/apps")
+    .then((res) => {
+      if (!res.ok) throw new Error(`apps: ${res.status}`);
+      return res.json() as Promise<AppListItem[]>;
+    })
+    .catch((err) => {
+      // A failed fetch can be tried again.
+      everyApp = null;
+      throw err;
+    });
+  return everyApp;
+}
 
 function shuffle<T>(list: T[]): T[] {
   const out = [...list];
@@ -26,9 +46,11 @@ function shuffle<T>(list: T[]): T[] {
 /**
  * The Apps list. The page arrives with the first rows only (`first`: a pick
  * of official and community apps, in `firstCategory` when the URL names
- * one). Every app is several megabytes, so that list is fetched once, from
- * /api/apps, when someone searches or asks for more; after that, search and
- * filters run in the browser.
+ * one), since every app is over a megabyte. That list is fetched once from
+ * /api/apps, shortly after the first rows appear; search, categories and
+ * "Show more" then run in the browser. Until it has arrived, the rows on the
+ * page stay where they are (dimmed while an answer is pending) rather than
+ * being swapped for placeholders.
  */
 export function AppDirectory({
   first,
@@ -37,12 +59,14 @@ export function AppDirectory({
   first: AppsFirstPage;
   firstCategory: string;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [search, setSearch] = useState(params.get("q") ?? "");
+  // The home page keeps this list mounted while the Bots tab shows; the URL
+  // is the Bots tab's then.
+  const live = params.get("tab") === "apps";
+  const [search, setSearch] = useState(live ? (params.get("q") ?? "") : "");
   // An unknown category in the URL is no category, as on the server.
-  const rawCategory = params.get("category") ?? "";
+  const rawCategory = useHeld(params.get("category") ?? "", live);
   const urlCategory = appCategoryLabel(rawCategory) ? rawCategory : "";
   // A clicked category shows as chosen at once; the URL follows, and once it
   // has moved on from where the click was made it speaks for itself again.
@@ -57,18 +81,27 @@ export function AppDirectory({
   };
 
   // Keep q and category in the URL (shareable, survives Back) without a
-  // history entry per keystroke.
+  // history entry per keystroke. The list is filtered here, so the URL is
+  // rewritten in place rather than asking the server for the page again.
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
     const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
   };
 
   const [query, setQuery] = useState(() => search.trim());
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // Shown again after the other tab: start from the URL, which the switch
+  // reset. (Effects run again each time a hidden list is shown.)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q") ?? "";
+    setSearch(q);
+    setQuery(q.trim());
+    setChosen(null);
+  }, []);
   const onSearch = (value: string) => {
     setSearch(value);
     clearTimeout(timer.current);
@@ -100,9 +133,7 @@ export function AppDirectory({
     loading.current = true;
     setLoadState("loading");
     try {
-      const res = await fetch("/api/apps");
-      if (!res.ok) throw new Error(`apps: ${res.status}`);
-      const list = (await res.json()) as AppListItem[];
+      const list = await fetchEveryApp();
       const { official, community } = firstRows.current;
       const here = new Set([...official, ...community].map((a) => a.slug));
       const rest = shuffle(list.filter((a) => !here.has(a.slug)));
@@ -119,9 +150,18 @@ export function AppDirectory({
     }
   }, []);
 
+  useEffect(() => {
+    const id = setTimeout(loadAll, PRELOAD_AFTER_MS);
+    return () => clearTimeout(id);
+  }, [loadAll]);
+
+  const searching = query.length >= 2;
+  // Built for the first search, not on arrival: indexing every app takes a
+  // moment most visits never need.
   const fuse = useMemo(
     () =>
       all &&
+      searching &&
       new Fuse(all, {
         keys: [
           { name: "name", weight: 3 },
@@ -134,14 +174,13 @@ export function AppDirectory({
         ignoreLocation: true,
         minMatchCharLength: 2,
       }),
-    [all],
+    [all, searching],
   );
-
-  const searching = query.length >= 2;
-  // Searching needs every app.
+  // Searching needs every app, and so does a category the page didn't
+  // arrive with.
   useEffect(() => {
-    if (searching) loadAll();
-  }, [searching, loadAll]);
+    if (searching || category !== firstCategory) loadAll();
+  }, [searching, category, firstCategory, loadAll]);
 
   const categoryName = appCategoryLabel(category);
   const inCategory = (a: AppListItem) =>
@@ -155,10 +194,10 @@ export function AppDirectory({
   let officialTotal: number;
   let communityTotal: number;
   let counts: Record<string, number> | null = null;
-  if (all && fuse) {
+  if (all) {
     // Search results keep Fuse's relevance order; otherwise the list keeps
     // the order it has (official first, each group shuffled per visit).
-    const matched = searching ? fuse.search(query).map((r) => r.item) : all;
+    const matched = fuse ? fuse.search(query).map((r) => r.item) : all;
     if (searching)
       counts = Object.fromEntries(
         APP_CATEGORIES.map((c) => [
@@ -181,10 +220,10 @@ export function AppDirectory({
     ? APP_CATEGORIES.filter((c) => all.some((a) => a.categories.includes(c.id)))
     : APP_CATEGORIES;
 
-  // Rows can't be shown yet: a search before every app has arrived, or a
-  // category the server hasn't answered for.
+  // The answer isn't here yet: a search or a category chosen before every
+  // app has arrived. The rows on the page stay, dimmed, until it is.
   const waiting = !all && (searching || category !== firstCategory);
-  const failed = waiting && searching && loadState === "failed";
+  const failed = waiting && loadState === "failed";
   const empty = !waiting && officialTotal + communityTotal === 0;
 
   return (
@@ -251,10 +290,6 @@ export function AppDirectory({
             Try again
           </button>
         </div>
-      ) : waiting ? (
-        <div className="section" data-testid="apps-loading">
-          <RowsSkeleton rows={8} />
-        </div>
       ) : empty ? (
         <div className="empty" data-testid="empty-state">
           <SceneBot
@@ -276,26 +311,37 @@ export function AppDirectory({
           </Link>
         </div>
       ) : (
-        (
-          [
-            ["Official apps", official, officialTotal, "official-apps"],
-            ["Community apps", community, communityTotal, "community-apps"],
-          ] as const
-        ).map(
-          ([title, list, total, id]) =>
-            total > 0 && (
-              <AppSection
-                // A new search or category starts from the first page.
-                key={`${id}:${query}:${category}`}
-                id={id}
-                title={searching ? `${title} matching “${query}”` : title}
-                apps={list}
-                total={total}
-                loadState={all ? "idle" : loadState}
-                onMore={loadAll}
-              />
-            ),
-        )
+        <div
+          className={waiting ? "is-pending" : undefined}
+          aria-busy={waiting || undefined}
+          data-testid={waiting ? "apps-pending" : undefined}
+        >
+          {(
+            [
+              ["Official apps", official, officialTotal, "official-apps"],
+              ["Community apps", community, communityTotal, "community-apps"],
+            ] as const
+          ).map(
+            ([title, list, total, id]) =>
+              total > 0 && (
+                <AppSection
+                  // A new search or category starts from the first page, once
+                  // its rows are here.
+                  key={waiting ? id : `${id}:${query}:${category}`}
+                  id={id}
+                  title={
+                    searching && !waiting
+                      ? `${title} matching “${query}”`
+                      : title
+                  }
+                  apps={list}
+                  total={total}
+                  loadState={all ? "idle" : loadState}
+                  onMore={loadAll}
+                />
+              ),
+          )}
+        </div>
       )}
     </>
   );
@@ -330,7 +376,6 @@ function AppSection({
       {apps.slice(0, shown).map((app) => (
         <AppRow key={app.slug} app={app} />
       ))}
-      {missing && loadState === "loading" && <RowsSkeleton rows={4} />}
       {missing && loadState === "failed" ? (
         <button
           type="button"
@@ -344,12 +389,16 @@ function AppSection({
           <button
             type="button"
             className="btn btn-gray show-more"
+            // More was asked for and is on its way.
+            disabled={missing && loadState === "loading"}
             onClick={() => {
               setShown((n) => n + PAGE_SIZE);
               if (apps.length < total) onMore();
             }}
           >
-            Show more ({total - shown} more)
+            {missing && loadState === "loading"
+              ? "Loading more…"
+              : `Show more (${total - shown} more)`}
           </button>
         )
       )}

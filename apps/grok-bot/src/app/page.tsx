@@ -1,43 +1,69 @@
-import { Suspense } from "react";
-import { AppDirectory } from "@/components/app-directory";
+import type { Metadata } from "next";
 import { HeroBot } from "@/components/bot-art";
-import { Directory } from "@/components/directory";
-import { HeroCta } from "@/components/hero-cta";
+import { HomeDirectory } from "@/components/home-directory";
 import { HomeIntro, IntroWord } from "@/components/home-intro";
-import { Segmented } from "@/components/segmented";
-import { RowsSkeleton } from "@/components/skeletons";
-import { type AppsFirstPage, firstAppsPage } from "@/data/apps";
-import { type DirectoryBot, listListedBots } from "@/data/bots";
+import { firstAppsPage } from "@/data/apps";
+import { listListedBots } from "@/data/bots";
 import { appCategoryLabel } from "@/lib/app-categories";
-import { formatCount } from "@/lib/format";
+import { OG_SIZE } from "@/lib/og";
 
 // Listings and install counts change constantly; render per request.
 export const dynamic = "force-dynamic";
 
-const FALLBACK_COPY = {
-  bots: "Bots built by the Grok Bot community",
-  apps: "Apps that give your bots new tools and skills",
-};
-
-type Tab = keyof typeof FALLBACK_COPY;
 type Props = { searchParams: Promise<{ tab?: string; category?: string }> };
 
-// The hero renders at once so its intro plays from the first paint; only the
-// count line and the directory wait for the listings.
+const APPS_TITLE = "Apps for Grok Bot";
+const APPS_DESCRIPTION =
+  "Official and community apps that give your Grok Bots new tools and skills.";
+
+// The Apps tab is this same route, so it gets its link preview here; the
+// Bots tab keeps the site's own (layout.tsx and opengraph-image.tsx).
+export async function generateMetadata({
+  searchParams,
+}: Props): Promise<Metadata> {
+  if ((await searchParams).tab !== "apps") return {};
+  const image = {
+    url: "/og/apps",
+    ...OG_SIZE,
+    alt: "Grok Bot Directory: tools and skills for your bots",
+  };
+  return {
+    // The layout's title template only reaches pages in folders below it.
+    title: `${APPS_TITLE} · Grok Bot Directory`,
+    description: APPS_DESCRIPTION,
+    openGraph: {
+      type: "website",
+      siteName: "Grok Bot Directory",
+      title: `${APPS_TITLE} · Grok Bot Directory`,
+      description: APPS_DESCRIPTION,
+      images: [image],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${APPS_TITLE} · Grok Bot Directory`,
+      description: APPS_DESCRIPTION,
+      images: [image],
+    },
+    alternates: { canonical: "/?tab=apps" },
+  };
+}
+
+// The headline renders at once so its intro plays from the first paint. Both
+// tabs' rows start loading here and stream in behind it, so switching between
+// Bots and Apps in the browser has nothing to wait for.
 export default async function HomePage({ searchParams }: Props) {
-  const { tab: rawTab, category: rawCategory } = await searchParams;
-  const tab: Tab = rawTab === "apps" ? "apps" : "bots";
-  // Only a category the directory knows reaches the query.
-  const category =
-    rawCategory && appCategoryLabel(rawCategory) ? rawCategory : "";
-  const bots = tab === "bots" ? listListedBots() : null;
+  const { tab, category } = await searchParams;
+  // Only a category the directory knows reaches the query, and only when
+  // the visit lands on the Apps tab (bot categories use the same parameter).
+  const appsCategory =
+    tab === "apps" && category && appCategoryLabel(category) ? category : "";
+  const bots = listListedBots();
   // The first rows only; the browser fetches the rest when it's asked for.
-  const apps =
-    tab === "apps" ? firstAppsPage({ category: category || null }) : null;
+  const apps = firstAppsPage({ category: appsCategory || null });
   return (
     <div className="shell start">
       <HomeIntro>
-        <div className="hero">
+        <HomeDirectory bots={bots} apps={apps} appsCategory={appsCategory}>
           <a
             href="https://x.ai/bot/guides/getting-started"
             target="_blank"
@@ -62,82 +88,8 @@ export default async function HomePage({ searchParams }: Props) {
               <IntroWord i={5}>job</IntroWord>
             </span>
           </h1>
-          {/* The wrapper carries the animation, so streaming the count in
-              doesn't restart it. */}
-          <div className="intro-copy">
-            <Suspense
-              fallback={<p className="hero-copy">{FALLBACK_COPY[tab]}</p>}
-            >
-              {bots ? <BotCopy bots={bots} /> : null}
-              {apps ? <AppCopy apps={apps} /> : null}
-            </Suspense>
-          </div>
-          <div className="intro-cta">
-            <HeroCta tab={tab} />
-          </div>
-        </div>
-        <div className="intro-rest">
-          <div className="directory-tabs">
-            <Segmented
-              label="Directory"
-              value={tab}
-              options={[
-                { id: "bots", label: "Bots", href: "/" },
-                { id: "apps", label: "Apps", href: "/?tab=apps" },
-              ]}
-            />
-          </div>
-          <Suspense
-            key={tab}
-            fallback={
-              <div className="section">
-                <RowsSkeleton rows={8} />
-              </div>
-            }
-          >
-            {bots ? <BotDirectory bots={bots} /> : null}
-            {apps ? <AppList apps={apps} category={category} /> : null}
-          </Suspense>
-        </div>
+        </HomeDirectory>
       </HomeIntro>
     </div>
   );
-}
-
-async function BotCopy({ bots }: { bots: Promise<DirectoryBot[]> }) {
-  const list = await bots;
-  return (
-    <p className="hero-copy">
-      {list.length > 0
-        ? `${formatCount(list.length)} bots from the Grok Bot community`
-        : FALLBACK_COPY.bots}
-    </p>
-  );
-}
-
-async function AppCopy({ apps }: { apps: Promise<AppsFirstPage> }) {
-  const { allTotal } = await apps;
-  return (
-    <p className="hero-copy">
-      {allTotal > 0
-        ? `${formatCount(allTotal)} apps that give your bots new tools and skills`
-        : FALLBACK_COPY.apps}
-    </p>
-  );
-}
-
-async function BotDirectory({ bots }: { bots: Promise<DirectoryBot[]> }) {
-  return <Directory bots={await bots} />;
-}
-
-// Apps aren't ranked, so each visit gets a fresh pick (official apps still
-// come first). The database picks it, so hydration sees the same order.
-async function AppList({
-  apps,
-  category,
-}: {
-  apps: Promise<AppsFirstPage>;
-  category: string;
-}) {
-  return <AppDirectory first={await apps} firstCategory={category} />;
 }
