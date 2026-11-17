@@ -127,28 +127,47 @@ export type ReviewOutcome = "listed" | "flagged" | "error" | "skipped";
 export async function reviewBot(botId: string): Promise<ReviewOutcome> {
   const admin = await createAdminClient();
   // Claim it: only pending bots that aren't mid-review (or whose review
-  // stalled) and still have attempts left.
-  const { data: bot, error: claimError } = await admin
-    .from("grok_bots")
-    .update({
-      ai_review_status: "reviewing",
-      ai_review_started_at: new Date().toISOString(),
-    })
-    .eq("id", botId)
-    .eq("status", "pending")
-    .lt("ai_review_attempts", MAX_ATTEMPTS)
-    .or(
-      `ai_review_status.is.null,ai_review_status.neq.reviewing,ai_review_started_at.lt.${new Date(Date.now() - 10 * 60_000).toISOString()}`,
-    )
-    // The hosted Data API applies an `or` filter to the returned row, so the
-    // columns it names must be returned too or the update is refused.
-    .select(
-      "id, slug, name, description, category, ai_review_attempts, ai_review_status, ai_review_started_at",
-    )
-    .maybeSingle();
-  if (claimError) {
-    console.error(`[ai-review] claiming ${botId} failed:`, claimError.message);
-    return "error";
+  // stalled) and still have attempts left. One plain filter per case rather
+  // than a single `or`: the hosted Data API checks an `or` against the row as
+  // updated, which by then says "reviewing", and reports nothing claimed.
+  const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+  const claim = () =>
+    admin
+      .from("grok_bots")
+      .update({
+        ai_review_status: "reviewing",
+        ai_review_started_at: new Date().toISOString(),
+      })
+      .eq("id", botId)
+      .eq("status", "pending")
+      .lt("ai_review_attempts", MAX_ATTEMPTS);
+  const claims = [
+    () => claim().neq("ai_review_status", "reviewing"),
+    () => claim().is("ai_review_status", null),
+    () =>
+      claim()
+        .eq("ai_review_status", "reviewing")
+        .lt("ai_review_started_at", stale),
+  ];
+  let bot: {
+    slug: string;
+    name: string;
+    description: string;
+    category: string;
+    ai_review_attempts: number;
+  } | null = null;
+  for (const attempt of claims) {
+    const { data, error } = await attempt()
+      .select("id, slug, name, description, category, ai_review_attempts")
+      .maybeSingle();
+    if (error) {
+      console.error(`[ai-review] claiming ${botId} failed:`, error.message);
+      return "error";
+    }
+    if (data) {
+      bot = data;
+      break;
+    }
   }
   if (!bot) return "skipped";
   await admin
