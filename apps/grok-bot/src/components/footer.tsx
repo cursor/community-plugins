@@ -37,7 +37,7 @@ export function Footer() {
         <div className="footer-brand">
           <div>
             <Lockup className="logo" />
-            <small>Community bots for Grok Bot</small>
+            <small>Community bots and apps for Grok Bot</small>
           </div>
           <ThemeToggle />
         </div>
