@@ -178,7 +178,9 @@ async function fetchExisting(
   supabase: SupabaseClient,
 ): Promise<ExistingPlugin[]> {
   const rows: ExistingPlugin[] = [];
-  const pageSize = 1000;
+  // The hosted Data API returns at most 100 rows however many are asked for,
+  // so a short page doesn't mean the last one: read until a page is empty.
+  const pageSize = 100;
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from("plugins")
@@ -188,8 +190,8 @@ async function fetchExisting(
       .order("id")
       .range(from, from + pageSize - 1);
     if (error) throw new Error(`Reading plugins failed: ${error.message}`);
-    rows.push(...((data ?? []) as ExistingPlugin[]));
-    if (!data || data.length < pageSize) return rows;
+    if (!data || data.length === 0) return rows;
+    rows.push(...(data as ExistingPlugin[]));
   }
 }
 
@@ -234,7 +236,6 @@ export async function syncMarketplacePlugins(
       .filter((e) => e.marketplace_plugin_id)
       .map((e) => [e.marketplace_plugin_id as string, e]),
   );
-  const takenNames = new Set(existing.map((e) => e.name.toLowerCase()));
   const takenSlugs = new Set(existing.map((e) => e.slug));
   const summary: SyncSummary = {
     catalog: catalog.length,
@@ -295,13 +296,8 @@ export async function syncMarketplacePlugins(
         continue;
       }
 
-      // Plugin names are unique across the directory; a community plugin
-      // may already use this one.
-      const publisher = p.publisher?.displayName || p.publisher?.name;
-      const name =
-        takenNames.has(displayName.toLowerCase()) && publisher
-          ? `${displayName} (${publisher})`
-          : displayName;
+      // An official plugin keeps its own name even when community plugins
+      // share it; only slugs are unique, and the database numbers a taken one.
       const preferredSlug = slugify(p.name);
       const slug =
         preferredSlug && !takenSlugs.has(preferredSlug)
@@ -311,7 +307,7 @@ export async function syncMarketplacePlugins(
         supabase,
         {
           ...marketplaceFields(p),
-          name,
+          name: displayName,
           slug,
           components: componentsFor(p).map((c) => ({ ...c, content: null })),
         },
@@ -322,7 +318,6 @@ export async function syncMarketplacePlugins(
         .update(link)
         .eq("id", inserted.id);
       if (error) throw new Error(error.message);
-      takenNames.add(name.toLowerCase());
       takenSlugs.add(inserted.slug);
       summary.inserted++;
       log(`[inserted] ${label} -> ${inserted.slug}`);
