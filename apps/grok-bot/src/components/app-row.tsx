@@ -34,7 +34,6 @@ export function AppRow({ app }: { app: AppListItem }) {
             >
               {app.name}
             </Link>
-            {app.publisher && <span className="by"> by {app.publisher}</span>}
           </div>
           <p className="row-desc">{app.description}</p>
         </div>
