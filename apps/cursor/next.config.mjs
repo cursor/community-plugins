@@ -9,7 +9,7 @@ const nextConfig = {
   turbopack: {
     root: resolve(__dirname, "../.."),
   },
-  serverExternalPackages: ["@cursor/sdk"],
+  serverExternalPackages: ["@xai-official/sdk"],
   headers: async () => {
     return [
       {

@@ -92,7 +92,7 @@ export async function pluginScanLimit(userId: string): Promise<LimitResult> {
 }
 
 // Write tools on the MCP server; caps runaway agent loops (re-scans are
-// billable Cursor SDK runs).
+// billable SpaceXSI API calls).
 export async function mcpModerationLimit(userId: string): Promise<LimitResult> {
   return check({
     rateLimitId: RATE_LIMIT_IDS.mcpModeration,

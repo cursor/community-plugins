@@ -109,10 +109,12 @@ See the [Open Plugins specification](https://open-plugins.com/plugin-builders/sp
 
 ## Plugin security scan
 
-Submitted plugins are auto-reviewed by a Cursor SDK agent (`composer-2`) running
-in `local` mode against a fresh clone of the plugin's repo plus its inline
-component content. The verdict (`safe` / `suspicious` / `malicious`) is written
-back to `plugins.scan_status` and surfaces in the admin queue.
+Submitted plugins are auto-reviewed by Grok (`grok-4.7`, through the official
+SpaceXSI SDK) from the plugin's inline component content and a fresh download
+of its repo. Grok inspects the repo with read-only tools (list, read and search
+files; `src/lib/plugins/repo-tools.ts`); nothing in the repo is executed. The
+verdict (`safe` / `suspicious` / `malicious`) is written back to
+`plugins.scan_status` and surfaces in the admin queue.
 
 The scan is asynchronous and runs out of the request lifecycle:
 
@@ -130,7 +132,7 @@ The scan is asynchronous and runs out of the request lifecycle:
    any messages that missed their kick still get processed.
 
 The drain route uses `maxDuration = 800` (Vercel Pro+ Fluid Compute ceiling) and
-relies on `CURSOR_API_KEY` + `CRON_SECRET` from the env file.
+relies on `XAI_API_KEY` + `CRON_SECRET` from the env file.
 
 
 ## Managing plugins via MCP (admins)

@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
  * 500 instead of letting the route run unauthenticated. The previous
  * `if (cronSecret) { ... }` pattern silently disarmed the check whenever the
  * env var was unset, which is unsafe for routes that trigger billable work
- * (Cursor SDK runs, Airtable syncs).
+ * (plugin security scans, Airtable syncs).
  *
  * Returns a `NextResponse` to short-circuit the handler, or `null` when the
  * request is authorized.
