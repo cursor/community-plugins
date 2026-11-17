@@ -9,6 +9,10 @@ import type { FunctionToolCall, InputItem, Tool } from "@xai-official/sdk";
  * repository. The repository is untrusted, so nothing in it is executed:
  * the model can only list, read and search files under the repository root.
  * Symlinks are reported but never followed, and every output is capped.
+ *
+ * The paths are in the scan's temp directory, never the project, so the
+ * calls Turbopack would trace carry `turbopackIgnore`: without it the build
+ * bundles the whole project into the drain function.
  */
 
 const MAX_READ_BYTES = 48 * 1024;
@@ -96,7 +100,7 @@ export function repoTools(root: string) {
       throw new ToolError("path is outside the repository");
     let real: string;
     try {
-      real = await realpath(abs);
+      real = await realpath(/* turbopackIgnore: true */ abs);
     } catch {
       throw new ToolError(`${relative} does not exist`);
     }
@@ -109,12 +113,14 @@ export function repoTools(root: string) {
 
   async function listFiles(args: Record<string, unknown>) {
     const dir = await resolve(args.path);
-    const entries = await readdir(dir, { withFileTypes: true }).catch(() => {
+    const entries = await readdir(/* turbopackIgnore: true */ dir, {
+      withFileTypes: true,
+    }).catch(() => {
       throw new ToolError(`${String(args.path)} is not a directory`);
     });
     const shown = await Promise.all(
       entries.slice(0, MAX_LIST_ENTRIES).map(async (e) => {
-        const abs = path.join(dir, e.name);
+        const abs = path.join(/* turbopackIgnore: true */ dir, e.name);
         const type = e.isSymbolicLink()
           ? "symlink"
           : e.isDirectory()
