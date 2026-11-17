@@ -6,6 +6,7 @@
   "exports": {
     "./apps": "./src/apps.ts",
     "./github": "./src/github.ts",
+    "./grok-bot-add": "./src/grok-bot-add.ts",
     "./insert": "./src/insert.ts",
     "./marketplace": "./src/marketplace.ts",
     "./mcp-config": "./src/mcp-config.ts",

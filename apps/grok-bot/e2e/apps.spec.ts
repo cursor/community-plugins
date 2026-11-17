@@ -175,10 +175,21 @@ test.describe("apps", () => {
       APP_FIXTURES.pending,
       APP_FIXTURES.cursorOnly,
       APP_FIXTURES.notInGrokBot,
+      APP_FIXTURES.notAddable,
     ]) {
       const res = await page.goto(`/apps/${f.slug}`);
       expect(res?.status()).toBe(404);
     }
+  });
+
+  test("an app Grok Bot can't add isn't listed", async ({ request }) => {
+    const apps = (await (await request.get("/api/apps")).json()) as {
+      slug: string;
+    }[];
+    const slugs = apps.map((a) => a.slug);
+    expect(slugs).toContain(APP_FIXTURES.community.slug);
+    expect(slugs).toContain(APP_FIXTURES.legacy.slug);
+    expect(slugs).not.toContain(APP_FIXTURES.notAddable.slug);
   });
 
   test("your submissions include your apps", async ({ page }) => {

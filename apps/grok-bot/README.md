@@ -80,7 +80,7 @@ plugin submitted on either site appears on both.
   (`cursor.com/grok-bot/link/v1/prompt?text=…`, one line, at most 1,000
   characters) with a message like "Add the MCP server https://… (call it
   "x")". Grok Bot's AddMcpServer tool then asks the user to confirm before
-  adding it (`src/lib/grok-bot-prompt.ts`). The message names the headers or
+  adding it (`packages/plugins/src/grok-bot-add.ts`). The message names the headers or
   environment variables a server needs but never their values, since the link
   travels wherever it's pasted. Skills go in the same message: "Add the skill
   "x" from https://…/apps/<slug>/skills/<skill>/SKILL.md (fetch it and save

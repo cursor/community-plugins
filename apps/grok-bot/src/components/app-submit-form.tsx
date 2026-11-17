@@ -24,7 +24,7 @@ const ERRORS: Record<string, string> = {
   no_components:
     "No MCP servers or skills found. Add an mcp.json or skills/*/SKILL.md to the repository.",
   not_usable:
-    "Grok Bot can’t use this plugin: it has no MCP servers or skills, only parts that run in Cursor.",
+    "Grok Bot can’t add this as it stands. Every MCP server needs a setup that works as written (a server URL, or an npx, uvx, bunx or docker command with no local paths or blanks), and every skill needs its SKILL.md.",
   unavailable: "Couldn’t reach GitHub. Try again in a moment.",
   github_busy:
     "GitHub is rate-limiting us right now, so we can’t read repositories. Try again in a few minutes.",

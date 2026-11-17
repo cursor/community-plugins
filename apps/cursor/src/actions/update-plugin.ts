@@ -1,5 +1,6 @@
 "use server";
 
+import { refreshGrokBotAddable } from "@directories/plugins/grok-bot-add";
 import { resolveComponentSlug } from "@directories/plugins/slug";
 import {
   type ComponentInput,
@@ -229,6 +230,13 @@ export const updatePluginAction = authActionClient
         } catch (queueError) {
           console.error("Failed to enqueue plugin scan", queueError);
         }
+      }
+
+      // The components may have changed what Grok Bot can add.
+      try {
+        await refreshGrokBotAddable(await createClient(), id);
+      } catch (err) {
+        console.error("Failed to set grok_bot_addable", err);
       }
 
       updateTag("plugins");

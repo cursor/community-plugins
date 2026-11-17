@@ -9,6 +9,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { refreshGrokBotAddable } from "./grok-bot-add";
 import { enqueuePluginScan } from "./queue";
 import { resolveComponentSlug } from "./slug";
 
@@ -146,6 +147,14 @@ export async function insertPlugin(
       `Failed to save plugin components: ${compError.message}`,
       "components_failed",
     );
+  }
+
+  // Until this succeeds the plugin stays out of the Grok Bot Directory
+  // (grok_bot_addable defaults to false), so a failure only hides it there.
+  try {
+    await refreshGrokBotAddable(supabase, plugin.id);
+  } catch (err) {
+    console.error("Failed to set grok_bot_addable", err);
   }
 
   let enqueued = false;

@@ -21,9 +21,54 @@ export type McpSetup =
       env: string[];
     };
 
-// Placeholders such as <YOUR_PATH> stand for something only the user knows,
-// so the agent can't add the server from the message alone.
-const PLACEHOLDER = /<[^<>]+>/;
+// A setup is only kept when it works as written on anyone's machine, so the
+// agent can add the server from the message alone. That rules out anything
+// only one user has.
+const NOT_PORTABLE: RegExp[] = [
+  // A blank to fill in: <YOUR_PATH>, {{id}}, YOUR_KEY, "your host",
+  // __BASE_URL__, example.com, "...", or a note in another script.
+  /<[^<>]+>/,
+  /\{[^{}]*\}/,
+  /YOUR/,
+  /\byour(\b|_)/i,
+  /REPLACE|_HERE\b|x{4}/i,
+  /__\w+_/,
+  /\bexample\.(com|org|net)\b/i,
+  /\.{3}|…/,
+  /[^\x20-\x7E]/,
+  // A value that is only a name: --header X-Token:API_KEY, API_KEY=abc.
+  /[:=][A-Z][A-Z0-9]*(_[A-Z0-9]+)+\b/,
+  /^[A-Z][A-Z0-9_]*=/,
+  // A variable: $HOME, ${TOKEN}.
+  /\$[A-Za-z_{(]/,
+  // A path on their disk: /abs, ~/x, ./x, C:\x, --dir=/abs, a:/b.
+  /^(~|\.{1,2})?[\\/]/,
+  /^[A-Za-z]:\\/,
+  /[=:](~|\.{1,2})?\/(?!\/)/,
+  /\/path\/to\b/i,
+  // A server on their own computer.
+  /\b(localhost|127\.0\.0\.1|0\.0\.0\.0)\b/i,
+];
+const portable = (text: string) => !NOT_PORTABLE.some((re) => re.test(text));
+
+// Commands that fetch what they run. Anything else (node, python, a binary
+// by name) needs files or an install the message can't provide.
+const PACKAGE_RUNNERS = new Set([
+  "npx",
+  "uvx",
+  "bunx",
+  "pnpx",
+  "pipx",
+  "docker",
+]);
+
+function publicHttps(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:" && portable(value);
+  } catch {
+    return false;
+  }
+}
 
 const record = (v: unknown): Record<string, unknown> | null =>
   v && typeof v === "object" && !Array.isArray(v)
@@ -94,7 +139,7 @@ function setupFrom(
 
   const url = config.url ?? config.serverUrl;
   if (typeof url === "string" && url) {
-    if (PLACEHOLDER.test(url)) return null;
+    if (!publicHttps(url)) return null;
     return {
       kind: "remote",
       url,
@@ -103,7 +148,23 @@ function setupFrom(
   }
   if (typeof config.command === "string" && config.command) {
     const args = Array.isArray(config.args) ? config.args.map(String) : [];
-    if ([config.command, ...args].some((part) => PLACEHOLDER.test(part)))
+    const command = config.command.toLowerCase();
+    if (!PACKAGE_RUNNERS.has(command) || !args.every(portable)) return null;
+    // An argument that is only a NAME stands for the user's own value, except
+    // where docker passes an environment variable through by name.
+    if (
+      args.some(
+        (arg, i) =>
+          /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(arg) &&
+          !["-e", "--env"].includes(args[i - 1]),
+      )
+    )
+      return null;
+    // A docker image without a namespace was built on the author's machine.
+    if (
+      command === "docker" &&
+      !args.some((arg) => /^[\w.-]+(:\d+)?\/[\w./-]+(:[\w.-]+)?$/.test(arg))
+    )
       return null;
     return {
       kind: "local",

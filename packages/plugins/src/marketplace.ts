@@ -10,6 +10,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { refreshGrokBotAddable } from "./grok-bot-add";
 import { insertPlugin } from "./insert";
 import { slugify } from "./slug";
 
@@ -142,6 +143,8 @@ function linkFields(p: CatalogPlugin) {
       : null,
     marketplace_categories: p.curatedCategoryKeys,
     unavailable_in: unavailableIn(p),
+    // Official apps are added through the marketplace itself.
+    grok_bot_addable: true,
   };
 }
 
@@ -353,6 +356,17 @@ export async function syncMarketplacePlugins(
       summary.failed++;
       log(`[failed] removing ${gone.slug}: ${error.message}`);
       continue;
+    }
+    // A community plugin again: whether Grok Bot can add it now depends on
+    // its own setup.
+    if (!imported) {
+      try {
+        await refreshGrokBotAddable(supabase, gone.id);
+      } catch (err) {
+        log(
+          `[failed] grok_bot_addable for ${gone.slug}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
     summary.deactivated++;
     log(`[removed] ${gone.slug}`);

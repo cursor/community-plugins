@@ -1,4 +1,5 @@
 import { grokBotPluginUrl } from "@directories/plugins/apps";
+import { type AddPart, grokBotAddUrl } from "@directories/plugins/grok-bot-add";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,12 +12,6 @@ import {
   primaryAppCategory,
 } from "@/lib/app-categories";
 import { formatRelativeDate } from "@/lib/format";
-import {
-  addServerSentence,
-  addSkillSentence,
-  addSkillsSentence,
-  grokBotPromptUrl,
-} from "@/lib/grok-bot-prompt";
 import { siteUrl } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
@@ -62,41 +57,25 @@ export default async function AppPage({ params }: Props) {
     : null;
   const related = more ? [...more.official, ...more.community].slice(0, 3) : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
-  // One message adding every server and skill; only when all of them can be
-  // read, so the agent isn't left adding half an app.
-  const sentences = app.marketplaceId
-    ? []
-    : app.components.map((c) => {
-        if (c.type === "skill")
-          return c.content
-            ? addSkillSentence(
-                c.name,
-                `${siteUrl()}/apps/${app.slug}/skills/${c.slug}/SKILL.md`,
-              )
-            : null;
-        return c.setup ? addServerSentence(c.name, c.setup) : null;
-      });
-  const skillCount = app.components.filter((c) => c.type === "skill").length;
-  const readable = sentences.length > 0 && sentences.every((s) => s !== null);
-  // When naming every skill doesn't fit, one sentence points at the list.
-  const addAll = !readable
+  // One message adding every server and skill; null unless all of them can
+  // be added (a listed community app always can: see grok_bot_addable).
+  const addAll = app.marketplaceId
     ? null
-    : (grokBotPromptUrl(sentences.join(" ")) ??
-      (skillCount > 1
-        ? grokBotPromptUrl(
-            [
-              ...app.components.flatMap((c) =>
-                c.type !== "skill" && c.setup
-                  ? [addServerSentence(c.name, c.setup)]
-                  : [],
-              ),
-              addSkillsSentence(
-                skillCount,
-                `${siteUrl()}/apps/${app.slug}/skills.md`,
-              ),
-            ].join(" "),
-          )
-        : null));
+    : grokBotAddUrl(
+        app.slug,
+        app.components.map(
+          (c): AddPart =>
+            c.type === "skill"
+              ? {
+                  type: "skill",
+                  name: c.name,
+                  slug: c.slug,
+                  stored: !!c.content,
+                }
+              : { type: "mcp_server", name: c.name, setup: c.setup },
+        ),
+        siteUrl(),
+      );
 
   return (
     <div className="detail">

@@ -7,6 +7,7 @@ import {
   parseGitHubPlugin,
   parseGitHubUrl,
 } from "@directories/plugins/github";
+import { addParts, grokBotAddUrl } from "@directories/plugins/grok-bot-add";
 import { InsertPluginError, insertPlugin } from "@directories/plugins/insert";
 import {
   inspectMcpServer,
@@ -14,7 +15,7 @@ import {
   type SuggestedDetails,
   suggestDetails,
 } from "@directories/plugins/mcp-inspect";
-import { slugify } from "@directories/plugins/slug";
+import { resolveComponentSlug, slugify } from "@directories/plugins/slug";
 import { revalidatePath } from "next/cache";
 import { getViewer } from "@/lib/auth";
 import { submitLimit } from "@/lib/rate-limit";
@@ -34,7 +35,7 @@ export type RepoPreview =
       logo: string | null;
       repository: string;
       parts: AppPart[];
-      /** Grok Bot can use it: it has MCP servers or skills. */
+      /** Grok Bot can add it as it stands (see `addable`). */
       usable: boolean;
       existing: { slug: string; listed: boolean; yours: boolean } | null;
       stars: number | null;
@@ -77,6 +78,26 @@ async function findExisting(repository: string) {
 const partsOf = (parsed: ParsedPlugin): AppPart[] =>
   parsed.components.map((c) => ({ type: c.type, name: c.name }));
 
+/**
+ * Grok Bot can add it as it stands: it has MCP servers or skills, every
+ * server has a setup that works as written, and every skill has its SKILL.md.
+ * The same rule decides `plugins.grok_bot_addable` once it's stored.
+ */
+const addable = (parsed: ParsedPlugin): boolean =>
+  worksInGrokBot(parsed.components.map((c) => c.type)) &&
+  grokBotAddUrl(
+    slugify(parsed.name) || "app",
+    addParts(
+      parsed.components.map((c) => ({
+        type: c.type,
+        name: c.name,
+        slug: resolveComponentSlug(c),
+        content: c.content ?? null,
+        metadata: c.metadata ?? null,
+      })),
+    ),
+  ) !== null;
+
 /** Reads a GitHub repository the way cursor.directory does, for the preview. */
 export async function previewAppRepo(url: string): Promise<RepoPreview> {
   if (!parseGitHubUrl(String(url ?? "")))
@@ -99,7 +120,7 @@ export async function previewAppRepo(url: string): Promise<RepoPreview> {
     logo: parsed.logo ?? null,
     repository: parsed.repository,
     parts,
-    usable: worksInGrokBot(parts.map((p) => p.type)),
+    usable: addable(parsed),
     stars: parsed.stars ?? null,
     archived: parsed.archived ?? false,
     pushedAt: parsed.pushed_at ?? null,
@@ -217,8 +238,7 @@ export async function submitApp(
     } catch (err) {
       return { ok: false, error: parseError(err) };
     }
-    if (!worksInGrokBot(parsed.components.map((c) => c.type)))
-      return { ok: false, error: "not_usable" };
+    if (!addable(parsed)) return { ok: false, error: "not_usable" };
     githubRepoId = parsed.github_repo_id ?? null;
     plugin = {
       name: parsed.name,

@@ -1,3 +1,4 @@
+import { refreshGrokBotAddable } from "@directories/plugins/grok-bot-add";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env";
@@ -114,7 +115,7 @@ export const APP_FIXTURES = {
     slug: "e2e-app-community",
     name: "Zephyr App Community",
     description: "A community app with a remote MCP server and a skill.",
-    serverUrl: "https://mcp.example.com/zephyr",
+    serverUrl: "https://mcp.zephyr.test/mcp",
   },
   // An older listing: no content, the setup only in its Cursor install link.
   legacy: {
@@ -133,8 +134,14 @@ export const APP_FIXTURES = {
     name: "Zephyr App Pending",
     description: "A community app waiting for its security check.",
   },
-  // Neither of these is an app: one only runs in Cursor, the other is
-  // marked as not working in Grok Bot.
+  // None of these is an app: one only runs in Cursor, one is marked as not
+  // working in Grok Bot, and one has a server Grok Bot couldn't add as
+  // written (its command runs a file on the submitter's own disk).
+  notAddable: {
+    slug: "e2e-app-not-addable",
+    name: "Zephyr App Not Addable",
+    description: "Its server needs a local path, so there's nothing to add.",
+  },
   cursorOnly: {
     slug: "e2e-app-cursor-only",
     name: "Zephyr App Cursor Only",
@@ -210,6 +217,7 @@ async function seedApps(owner: string) {
         scan_status: "pending",
       }),
       plugin(APP_FIXTURES.cursorOnly, {}),
+      plugin(APP_FIXTURES.notAddable, { owner_id: owner }),
       plugin(APP_FIXTURES.notInGrokBot, {
         discovery_source: "marketplace",
         marketplace_plugin_id: "990000002",
@@ -270,7 +278,7 @@ async function seedApps(owner: string) {
         server(
           APP_FIXTURES.flagged.slug,
           "zephyr-flagged",
-          JSON.stringify({ url: "https://mcp.example.com/flagged" }),
+          JSON.stringify({ url: "https://mcp.zephyr.test/flagged" }),
         ),
         server(APP_FIXTURES.pending.slug, "zephyr-pending", null),
         {
@@ -279,11 +287,18 @@ async function seedApps(owner: string) {
           name: "zephyr-rule",
           slug: "zephyr-rule",
         },
+        server(
+          APP_FIXTURES.notAddable.slug,
+          "zephyr-local",
+          JSON.stringify({ command: "node", args: ["/path/to/index.js"] }),
+        ),
         server(APP_FIXTURES.notInGrokBot.slug, "zephyr-hidden", null),
         // A multi-row insert sends every column for every row.
       ].map((row) => ({ metadata: {}, ...row })),
     );
   if (compError) throw compError;
+  // What the directories do whenever they write a plugin's components.
+  for (const p of data) await refreshGrokBotAddable(db(), p.id);
 }
 
 /** Puts the fixture bots back in their starting state. */

@@ -208,11 +208,16 @@ export async function getApp(slug: string): Promise<AppDetail | null> {
   const { data } = await admin
     .from("plugins")
     .select(
-      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, active, unavailable_in, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
+      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, active, unavailable_in, grok_bot_addable, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
-  if (!data?.active || (data.unavailable_in ?? []).includes("grok_bot"))
+  // Apps Grok Bot can't add aren't in the directory at all.
+  if (
+    !data?.active ||
+    !data.grok_bot_addable ||
+    (data.unavailable_in ?? []).includes("grok_bot")
+  )
     return null;
   const components = (
     (data.plugin_components ?? []) as {
