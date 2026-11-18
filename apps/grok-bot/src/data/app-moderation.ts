@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
+import { allRowsIn } from "@/utils/supabase/all-rows";
 import type { ModerationEvent } from "./bots";
 
 /**
@@ -191,16 +192,30 @@ export async function listAppModerationHistory(
   const history = new Map<string, ModerationEvent[]>();
   if (appIds.length === 0) return history;
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("plugin_moderation_events")
-    .select("id, created_at, plugin_id, action, source, actor_id, reason")
-    .in("plugin_id", appIds)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
+  // A page of apps can have more than a hundred events between them.
+  const data = (
+    await allRowsIn<{
+      id: number;
+      created_at: string;
+      plugin_id: string;
+      action: string;
+      source: ModerationEvent["source"];
+      actor_id: string | null;
+      reason: string | null;
+    }>(appIds, (group, from, to) =>
+      admin
+        .from("plugin_moderation_events")
+        .select("id, created_at, plugin_id, action, source, actor_id, reason", {
+          count: "exact",
+        })
+        .in("plugin_id", group)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    )
+  ).sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
   const actorIds = [
-    ...new Set(
-      (data ?? []).map((e) => e.actor_id).filter((id): id is string => !!id),
-    ),
+    ...new Set(data.map((e) => e.actor_id).filter((id): id is string => !!id)),
   ];
   const names = new Map<string, string>();
   if (actorIds.length > 0) {
@@ -210,7 +225,7 @@ export async function listAppModerationHistory(
       .in("id", actorIds);
     for (const u of users ?? []) names.set(u.id, u.name);
   }
-  for (const e of data ?? []) {
+  for (const e of data) {
     const list = history.get(e.plugin_id) ?? [];
     list.push({
       id: e.id,
