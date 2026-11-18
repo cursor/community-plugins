@@ -9,7 +9,7 @@ import { getCreatorProfile } from "@/data/creators";
 import { creatorPath, listingCounts } from "@/lib/creator-handle";
 import { formatAddCount } from "@/lib/format";
 
-// A creator's public profile: their listed bots and apps on one page they
+// A member's public profile: their listed bots and apps on one page they
 // can share. Only what's listed appears; see getCreatorProfile.
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ async function handleIn(params: Props["params"]): Promise<string> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const profile = await getCreatorProfile(await handleIn(params));
-  if (!profile) return { title: "Creator not found" };
+  if (!profile) return { title: "Profile not found" };
   const { creator, bots, apps } = profile;
   const title = creator.xHandle
     ? `${creator.name} (@${creator.xHandle})`

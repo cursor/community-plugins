@@ -905,7 +905,7 @@ img {
     text-underline-offset: 3px;
   }
 }
-/* Creator profile (/creators/<handle>) */
+/* A member's profile (/u/<handle>) */
 .creator-head {
   display: flex;
   align-items: center;

@@ -19,7 +19,7 @@ export type Creator = {
   id: string;
   name: string;
   image: string | null;
-  /** The last part of /creators/<handle>: "@xhandle" or the profile's slug. */
+  /** The last part of /u/<handle>: "@xhandle" or the profile's slug. */
   handle: string;
   /** Their X handle, when they signed in with X. */
   xHandle: string | null;

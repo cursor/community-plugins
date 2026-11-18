@@ -1,4 +1,5 @@
-// A creator's public handle, the last part of /creators/<handle>. Someone
+// A member's public handle, the last part of their profile's address,
+// /u/<handle> (as on cursor.directory, whose profiles these share). Someone
 // who signed in with X goes by "@" and that handle (X checked it, so nobody
 // else can take it); everyone else goes by their profile's slug, which is
 // theirs on cursor.directory too. A slug never starts with "@", so the two
@@ -13,7 +14,7 @@ export function creatorHandle(member: {
   return member.x_handle ? `@${member.x_handle}` : member.slug;
 }
 
-export const creatorPath = (handle: string) => `/creators/${handle}`;
+export const creatorPath = (handle: string) => `/u/${handle}`;
 
 /** The X handle in "@handle", or null when it isn't one. */
 export function xHandleIn(handle: string): string | null {

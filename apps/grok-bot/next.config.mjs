@@ -15,11 +15,14 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/opengraph-image": ["./public/og/**", "./public/brand/**"],
     "/bots/[slug]/opengraph-image": ["./public/bots/**", "./public/brand/**"],
-    "/creators/[handle]/opengraph-image": [
-      "./public/bots/**",
-      "./public/brand/**",
-    ],
+    "/u/[handle]/opengraph-image": ["./public/bots/**", "./public/brand/**"],
     "/apps/[slug]/opengraph-image": ["./public/brand/**"],
+  },
+  async redirects() {
+    return [
+      // Profiles were at /creators/<handle> for their first hours.
+      { source: "/creators/:path*", destination: "/u/:path*", permanent: true },
+    ];
   },
   images: {
     remotePatterns: [

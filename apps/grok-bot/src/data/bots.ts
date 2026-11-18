@@ -48,7 +48,7 @@ export type DirectoryBot = {
     xHandle: string | null;
     /**
      * The handle of the profile that lists this creator's bots and apps
-     * (/creators/<handle>): the member who submitted the bot, when their
+     * (/u/<handle>): the member who submitted the bot, when their
      * profile is public.
      */
     profile: string | null;

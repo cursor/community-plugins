@@ -4,7 +4,7 @@ import { getCreatorProfile } from "@/data/creators";
 import { listingCounts } from "@/lib/creator-handle";
 import { botFaceUri, dataUri, OG_SIZE } from "@/lib/og";
 
-export const alt = "A creator on Grok Bot Directory";
+export const alt = "A member's profile on Grok Bot Directory";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
@@ -52,7 +52,7 @@ export default async function Image({
         .map((bot) => botFaceUri(bot.body, bot.color)),
     ),
   ]);
-  const name = creator?.name ?? "Creator not found";
+  const name = creator?.name ?? "Profile not found";
   return new ImageResponse(
     <div
       style={{
