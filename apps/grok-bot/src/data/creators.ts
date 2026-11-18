@@ -3,12 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { type AppListItem, listAppsByCreator } from "@/data/apps";
 import { type DirectoryBot, listListedBotsByOwner } from "@/data/bots";
-import {
-  creatorHandle,
-  creatorPath,
-  isXHandle,
-  xHandleIn,
-} from "@/lib/creator-handle";
+import { creatorHandle, creatorPath, isXHandle } from "@/lib/creator-handle";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**
@@ -19,7 +14,7 @@ export type Creator = {
   id: string;
   name: string;
   image: string | null;
-  /** The last part of /u/<handle>: "@xhandle" or the profile's slug. */
+  /** The last part of /u/<handle>: their X handle, or the profile's slug. */
   handle: string;
   /** Their X handle, when they signed in with X. */
   xHandle: string | null;
@@ -57,13 +52,19 @@ async function byXHandle(name: string): Promise<Creator | null> {
   return data ? toCreator(data as MemberRow) : null;
 }
 
-/** The member a handle in an address names, whichever way it's written. */
-async function findCreator(handle: string): Promise<Creator | null> {
-  if (!handle || handle.length > 100) return null;
-  if (handle.startsWith("@")) {
-    const name = xHandleIn(handle);
-    return name ? byXHandle(name) : null;
+/**
+ * The member a handle in an address names: the one who holds it on X, and
+ * failing that the one whose profile slug it is. "@name", the form these
+ * addresses had at first, is read as the X handle.
+ */
+async function findCreator(written: string): Promise<Creator | null> {
+  if (!written || written.length > 100) return null;
+  const handle = written.startsWith("@") ? written.slice(1) : written;
+  if (isXHandle(handle)) {
+    const onX = await byXHandle(handle);
+    if (onX) return onX;
   }
+  if (written !== handle) return null;
   const admin = await createAdminClient();
   const { data } = await admin
     .from("users")
@@ -71,9 +72,7 @@ async function findCreator(handle: string): Promise<Creator | null> {
     .eq("slug", handle)
     .eq("public", true)
     .maybeSingle();
-  if (data) return toCreator(data as MemberRow);
-  // An X handle typed without its "@".
-  return isXHandle(handle) ? byXHandle(handle) : null;
+  return data ? toCreator(data as MemberRow) : null;
 }
 
 /** A member as their profile shows them. Null when it isn't public. */

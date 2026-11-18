@@ -56,9 +56,12 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   name, photo and X handle, and nothing else: no pending
   or declined submissions, no email, and no page for a member whose
   cursor.directory profile isn't public or who has nothing listed. A member
-  who signed in with X goes by `@handle` (`users.x_handle`, written at each X
-  sign-in, so X has checked it); everyone else by their profile's slug. A
-  slug or a bare X handle redirects to the one address. Author names on bot
+  who signed in with X goes by that handle (`users.x_handle`, written at each
+  X sign-in, so X has checked it); everyone else by their profile's slug:
+  `/u/kevinrose`, `/u/pontus`. An address is read as an X handle first and a
+  slug second, so a slug that equals someone else's X handle gives way to
+  it. A member's slug redirects to their X handle when they have one, as
+  does `/u/@handle`, the form these addresses had at first. Author names on bot
   rows and bot pages link there, the account menu has "Your profile", and
   "Your submissions" has the link to copy. `/creators/<handle>`, the first
   address, redirects.
