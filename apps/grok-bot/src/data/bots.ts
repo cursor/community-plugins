@@ -3,6 +3,7 @@ import "server-only";
 import slugify from "slugify";
 import { type Body, bodyForShape } from "@/lib/avatar";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
+import { allRows, allRowsIn } from "@/utils/supabase/all-rows";
 
 export type BotStatus = "pending" | "listed" | "declined" | "unlisted";
 export type AiReviewStatus =
@@ -100,12 +101,16 @@ async function toDirectoryBots(
   const owners = new Map<string, Owner>();
   if (ownerIds.length > 0) {
     const admin = await createAdminClient();
-    const { data } = await admin
-      .from("users")
-      .select("id, name, image, slug, social_x_link")
-      .in("id", ownerIds)
-      .eq("public", true);
-    for (const owner of (data ?? []) as Owner[]) owners.set(owner.id, owner);
+    const found = await allRowsIn<Owner>(ownerIds, (group, from, to) =>
+      admin
+        .from("users")
+        .select("id, name, image, slug, social_x_link", { count: "exact" })
+        .in("id", group)
+        .eq("public", true)
+        .order("id")
+        .range(from, to),
+    );
+    for (const owner of found) owners.set(owner.id, owner);
   }
   return rows.map((row) => {
     const owner = row.owner_id ? owners.get(row.owner_id) : undefined;
@@ -155,17 +160,30 @@ async function toDirectoryBots(
 
 export async function listListedBots(): Promise<DirectoryBot[]> {
   const admin = await createAdminClient();
-  const [{ data: rows, error }, { data: velocity }] = await Promise.all([
-    admin.from("grok_bots").select(BOT_COLUMNS).eq("status", "listed"),
-    admin.rpc("grok_bot_install_velocity", { window_days: 30 }),
-  ]);
-  if (error) throw error;
-  const recent = new Map<string, number>(
-    ((velocity ?? []) as { bot_id: string; installs_window: number }[]).map(
-      (v) => [v.bot_id, v.installs_window],
+  const [rows, velocity] = await Promise.all([
+    allRows<BotRow>((from, to) =>
+      admin
+        .from("grok_bots")
+        .select(BOT_COLUMNS, { count: "exact" })
+        .eq("status", "listed")
+        .order("id")
+        .range(from, to),
     ),
+    allRows<{ bot_id: string; installs_window: number }>((from, to) =>
+      admin
+        .rpc(
+          "grok_bot_install_velocity",
+          { window_days: 30 },
+          { count: "exact" },
+        )
+        .order("bot_id")
+        .range(from, to),
+    ),
+  ]);
+  const recent = new Map<string, number>(
+    velocity.map((v) => [v.bot_id, v.installs_window]),
   );
-  return toDirectoryBots((rows ?? []) as BotRow[], recent);
+  return toDirectoryBots(rows, recent);
 }
 
 export async function getListedBot(slug: string): Promise<DirectoryBot | null> {
@@ -185,23 +203,29 @@ export async function listBotsByOwner(
   ownerId: string,
 ): Promise<DirectoryBot[]> {
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("grok_bots")
-    .select(BOT_COLUMNS)
-    .eq("owner_id", ownerId)
-    .order("submitted_at", { ascending: false });
-  if (error) throw error;
-  return toDirectoryBots((data ?? []) as BotRow[]);
+  const rows = await allRows<BotRow>((from, to) =>
+    admin
+      .from("grok_bots")
+      .select(BOT_COLUMNS, { count: "exact" })
+      .eq("owner_id", ownerId)
+      .order("submitted_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
+  return toDirectoryBots(rows);
 }
 
 export async function listBotsForReview(): Promise<DirectoryBot[]> {
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("grok_bots")
-    .select(BOT_COLUMNS)
-    .eq("status", "pending")
-    .order("submitted_at", { ascending: true });
-  if (error) throw error;
+  const rows = await allRows<BotRow>((from, to) =>
+    admin
+      .from("grok_bots")
+      .select(BOT_COLUMNS, { count: "exact" })
+      .eq("status", "pending")
+      .order("submitted_at", { ascending: true })
+      .order("id")
+      .range(from, to),
+  );
   // Flagged and failed reviews need a person first; then bots still being
   // checked. Oldest first within each.
   const rank: Record<string, number> = {
@@ -210,7 +234,7 @@ export async function listBotsForReview(): Promise<DirectoryBot[]> {
     reviewing: 2,
     queued: 3,
   };
-  const bots = await toDirectoryBots((data ?? []) as BotRow[]);
+  const bots = await toDirectoryBots(rows);
   return bots.sort(
     (a, b) =>
       (rank[a.aiReviewStatus ?? ""] ?? 4) - (rank[b.aiReviewStatus ?? ""] ?? 4),
@@ -251,14 +275,17 @@ export async function listBotsByStatus(
   statuses: BotStatus[],
 ): Promise<DirectoryBot[]> {
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("grok_bots")
-    .select(BOT_COLUMNS)
-    .in("status", statuses)
-    .order("reviewed_at", { ascending: false, nullsFirst: false })
-    .order("submitted_at", { ascending: false });
-  if (error) throw error;
-  return toDirectoryBots((data ?? []) as BotRow[]);
+  const rows = await allRows<BotRow>((from, to) =>
+    admin
+      .from("grok_bots")
+      .select(BOT_COLUMNS, { count: "exact" })
+      .in("status", statuses)
+      .order("reviewed_at", { ascending: false, nullsFirst: false })
+      .order("submitted_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
+  return toDirectoryBots(rows);
 }
 
 export async function countBotsByStatus(): Promise<Record<BotStatus, number>> {
@@ -297,26 +324,46 @@ export async function listModerationHistory(
   const history = new Map<string, ModerationEvent[]>();
   if (botIds.length === 0) return history;
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("grok_bot_moderation_events")
-    .select("id, created_at, bot_id, action, source, actor_id, reason")
-    .in("bot_id", botIds)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
+  type EventRow = {
+    id: number;
+    created_at: string;
+    bot_id: string;
+    action: string;
+    source: ModerationEvent["source"];
+    actor_id: string | null;
+    reason: string | null;
+  };
+  const events = (
+    await allRowsIn<EventRow>(botIds, (group, from, to) =>
+      admin
+        .from("grok_bot_moderation_events")
+        .select("id, created_at, bot_id, action, source, actor_id, reason", {
+          count: "exact",
+        })
+        .in("bot_id", group)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    )
+  ).sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
   const actorIds = [
     ...new Set(
-      (data ?? []).map((e) => e.actor_id).filter((id): id is string => !!id),
+      events.map((e) => e.actor_id).filter((id): id is string => !!id),
     ),
   ];
   const names = new Map<string, string>();
-  if (actorIds.length > 0) {
-    const { data: users } = await admin
-      .from("users")
-      .select("id, name")
-      .in("id", actorIds);
-    for (const u of users ?? []) names.set(u.id, u.name);
-  }
-  for (const e of data ?? []) {
+  const users = await allRowsIn<{ id: string; name: string }>(
+    actorIds,
+    (group, from, to) =>
+      admin
+        .from("users")
+        .select("id, name", { count: "exact" })
+        .in("id", group)
+        .order("id")
+        .range(from, to),
+  );
+  for (const u of users) names.set(u.id, u.name);
+  for (const e of events) {
     const list = history.get(e.bot_id) ?? [];
     list.push({
       id: e.id,

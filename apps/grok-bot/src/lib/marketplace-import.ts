@@ -5,6 +5,7 @@ import { categoryIdForLabel } from "@/lib/categories";
 import { listMarketplace } from "@/lib/grok-bot-api";
 import { isShareId } from "@/lib/share-link";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
+import { allRows } from "@/utils/supabase/all-rows";
 
 const TEAM_CATEGORY = "From Grok Bot Team";
 
@@ -18,8 +19,14 @@ async function uniqueSlug(
   const base =
     slugify(name, { lower: true, strict: true }).slice(0, 60) || "bot";
   if (taken.size === 0) {
-    const { data } = await admin.from("grok_bots").select("slug");
-    for (const r of data ?? []) taken.add(r.slug);
+    const rows = await allRows<{ slug: string }>((from, to) =>
+      admin
+        .from("grok_bots")
+        .select("slug", { count: "exact" })
+        .order("slug")
+        .range(from, to),
+    );
+    for (const r of rows) taken.add(r.slug);
   }
   let slug = base;
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
@@ -49,11 +56,15 @@ export async function importMarketplace(): Promise<MarketplaceReport> {
       isShareId(l.shareId) &&
       l.defaultAvatar,
   );
-  const { data: existing, error } = await admin
-    .from("grok_bots")
-    .select("share_id, source");
-  if (error) throw error;
-  const sourceOf = new Map((existing ?? []).map((r) => [r.share_id, r.source]));
+  const existing = await allRows<{ share_id: string; source: string }>(
+    (from, to) =>
+      admin
+        .from("grok_bots")
+        .select("share_id, source", { count: "exact" })
+        .order("share_id")
+        .range(from, to),
+  );
+  const sourceOf = new Map(existing.map((r) => [r.share_id, r.source]));
   const taken = new Set<string>();
   const report: MarketplaceReport = {
     listings: listings.length,

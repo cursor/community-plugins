@@ -3,6 +3,7 @@ import "server-only";
 import { appCategories, worksInGrokBot } from "@directories/plugins/apps";
 import { type McpSetup, parseMcpSetup } from "@directories/plugins/mcp-config";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
+import { allRows } from "@/utils/supabase/all-rows";
 
 /**
  * Apps are cursor.directory's plugins under Grok Bot's name: the same rows in
@@ -295,15 +296,32 @@ export async function listAppsByOwner(
   ownerId: string,
 ): Promise<AppSubmission[]> {
   const admin = await createAdminClient();
-  const { data, error } = await admin
-    .from("plugins")
-    .select(
-      "id, slug, name, description, logo, created_at, active, scan_status, permanently_blocked, unavailable_in, plugin_components(type)",
-    )
-    .eq("owner_id", ownerId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).flatMap((p) => {
+  type OwnedRow = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    logo: string | null;
+    created_at: string;
+    active: boolean;
+    scan_status: string;
+    permanently_blocked: boolean;
+    unavailable_in: string[] | null;
+    plugin_components: { type: string }[] | null;
+  };
+  const rows = await allRows<OwnedRow>((from, to) =>
+    admin
+      .from("plugins")
+      .select(
+        "id, slug, name, description, logo, created_at, active, scan_status, permanently_blocked, unavailable_in, plugin_components(type)",
+        { count: "exact" },
+      )
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
+  return rows.flatMap((p) => {
     const types = (p.plugin_components ?? []).map(
       (c: { type: string }) => c.type,
     );
