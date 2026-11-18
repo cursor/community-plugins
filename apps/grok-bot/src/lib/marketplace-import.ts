@@ -1,6 +1,7 @@
 import "server-only";
 
 import slugify from "slugify";
+import { DESCRIPTION_MAX, fit, NAME_MAX } from "@/lib/card-limits";
 import { categoryIdForLabel } from "@/lib/categories";
 import { listMarketplace } from "@/lib/grok-bot-api";
 import { isShareId } from "@/lib/share-link";
@@ -76,8 +77,8 @@ export async function importMarketplace(): Promise<MarketplaceReport> {
 
   for (const l of community) {
     const card = {
-      name: l.name.trim(),
-      description: l.description.trim(),
+      name: fit(l.name.trim(), NAME_MAX),
+      description: fit(l.description.trim(), DESCRIPTION_MAX),
       avatar_shape: l.defaultAvatar!.shape,
       avatar_color: l.defaultAvatar!.color,
       creator_name: l.creator?.name || null,

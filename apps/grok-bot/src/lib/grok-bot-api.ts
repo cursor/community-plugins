@@ -1,6 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
+import { DESCRIPTION_MAX, fit, NAME_MAX } from "@/lib/card-limits";
 
 // Public, unauthenticated Grok Bot RPCs (Connect protocol, JSON). These are
 // the reads x.ai's own share and marketplace pages use: they return only the
@@ -87,8 +88,9 @@ export async function getPublicTemplate(
     status: "ok",
     template: {
       shareId: template.shareId,
-      name: template.name.trim(),
-      description: template.description.trim(),
+      // Cut to what a listing stores, so a long card can still be submitted.
+      name: fit(template.name.trim(), NAME_MAX),
+      description: fit(template.description.trim(), DESCRIPTION_MAX),
       shape: template.avatarShape,
       color: template.avatarColor,
       updatedAt: template.updatedAtMs
