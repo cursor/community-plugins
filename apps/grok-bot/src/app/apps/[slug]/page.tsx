@@ -9,6 +9,7 @@ import { firstAppsPage, getApp } from "@/data/apps";
 import {
   appCategoryLabel,
   appContents,
+  creditedPublisher,
   primaryAppCategory,
 } from "@/lib/app-categories";
 import { formatRelativeDate } from "@/lib/format";
@@ -50,6 +51,7 @@ export default async function AppPage({ params }: Props) {
   const app = await getApp((await params).slug);
   if (!app) notFound();
   const category = primaryAppCategory(app.categories);
+  const publisher = creditedPublisher(app);
   // Three others in its category: official ones first, a fresh pick each
   // visit.
   const more = category
@@ -94,7 +96,7 @@ export default async function AppPage({ params }: Props) {
         )}
       </h1>
       <div className="byline">
-        {app.publisher && (
+        {publisher && (
           <>
             By{" "}
             {app.publisherUrl ? (
@@ -103,10 +105,10 @@ export default async function AppPage({ params }: Props) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {app.publisher}
+                {publisher}
               </a>
             ) : (
-              <span>{app.publisher}</span>
+              <span>{publisher}</span>
             )}
             {" · "}
           </>

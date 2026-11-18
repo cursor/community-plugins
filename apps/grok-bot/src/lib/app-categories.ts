@@ -23,3 +23,18 @@ export function appContents(mcpServers: number, skills: number): string {
   ].filter(Boolean);
   return parts.join(" · ");
 }
+
+/**
+ * Who to credit an app to, or null when that only repeats the app's name
+ * (a company listing its own product).
+ */
+export function creditedPublisher(app: {
+  name: string;
+  publisher: string | null;
+}): string | null {
+  const publisher = app.publisher?.trim();
+  if (!publisher) return null;
+  return publisher.toLowerCase() === app.name.trim().toLowerCase()
+    ? null
+    : publisher;
+}
