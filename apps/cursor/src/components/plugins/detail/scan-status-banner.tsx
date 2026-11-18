@@ -1,8 +1,8 @@
 "use client";
 
+import type { PluginRow } from "@directories/plugins/types";
 import { Loader2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import type { PluginRow } from "@/lib/plugins/types";
 
 export function ScanStatusBanner({
   plugin,

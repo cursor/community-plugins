@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+  FlagSeverity,
+  PluginRow,
+  ScanStatus,
+} from "@directories/plugins/types";
 import {
   Check,
   EyeOff,
@@ -36,7 +41,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-is-admin";
-import type { FlagSeverity, PluginRow, ScanStatus } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 
 const severityClass: Record<FlagSeverity, string> = {

@@ -13,9 +13,15 @@
     "typecheck": "tsc --noEmit",
     "seed:extract": "bun run --env-file=.env src/scripts/extract-from-github.ts",
     "seed:insert": "bun run --env-file=.env src/scripts/insert-from-jsonl.ts",
-    "mcp:create-oauth-client": "bun run --env-file=.env src/scripts/create-mcp-oauth-client.ts"
+    "seed:marketplace-plugins": "bun run --conditions=react-server --env-file=.env src/scripts/sync-marketplace-plugins.ts",
+    "mcp:create-oauth-client": "bun run --env-file=.env src/scripts/create-mcp-oauth-client.ts",
+    "categorize:apps": "bun run --conditions=react-server --env-file=.env src/scripts/categorize-apps.ts",
+    "recover:mcp-setups": "bun run --conditions=react-server --env-file=.env src/scripts/recover-mcp-setups.ts",
+    "refresh:grok-bot-addable": "bun run --conditions=react-server --env-file=.env src/scripts/refresh-grok-bot-addable.ts",
+    "clean:stale-plugins": "bun run --conditions=react-server --env-file=.env src/scripts/clean-stale-plugins.ts"
   },
   "dependencies": {
+    "@directories/plugins": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/server": "^2.3.1",
     "@radix-ui/react-alert-dialog": "1.1.15",

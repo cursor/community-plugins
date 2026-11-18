@@ -1,7 +1,7 @@
+import type { PluginRow } from "@directories/plugins/types";
 import type { PluginCardData } from "@/components/plugins/plugin-card";
 import { PluginCard } from "@/components/plugins/plugin-card";
 import { getStarredPlugins } from "@/data/queries";
-import type { PluginRow } from "@/lib/plugins/types";
 
 function getPluginType(
   components: { type: string }[],

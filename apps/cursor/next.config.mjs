@@ -1,5 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OPTIMIZED_IMAGE_HOSTS } from "./src/lib/image-hosts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -9,6 +10,7 @@ const nextConfig = {
   turbopack: {
     root: resolve(__dirname, "../.."),
   },
+  transpilePackages: ["@directories/plugins"],
   serverExternalPackages: ["@xai-official/sdk"],
   headers: async () => {
     return [
@@ -134,38 +136,7 @@ const nextConfig = {
     ];
   },
   images: {
-    remotePatterns: [
-      {
-        hostname: "cdn.brandfetch.io",
-      },
-      {
-        hostname: "pbs.twimg.com",
-      },
-      {
-        hostname: "midday.ai",
-      },
-      {
-        hostname: "pub-abe1cd4008f5412abb77357f87d7d7bb.r2.dev",
-      },
-      {
-        hostname: "avatars.githubusercontent.com",
-      },
-      {
-        hostname: "knhgkaawjfqqwmsgmxns.supabase.co",
-      },
-      {
-        hostname: "service.cursor.directory",
-      },
-      {
-        hostname: "console.settlemint.com",
-      },
-      {
-        hostname: "assets.serverless-extras.com",
-      },
-      {
-        hostname: "images.lumacdn.com",
-      },
-    ],
+    remotePatterns: OPTIMIZED_IMAGE_HOSTS.map((hostname) => ({ hostname })),
   },
 };
 

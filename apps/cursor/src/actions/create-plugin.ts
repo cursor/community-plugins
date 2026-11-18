@@ -1,11 +1,13 @@
 "use server";
 
+import { resolveGithubRepoIdFromRepository } from "@directories/plugins/github";
+import { InsertPluginError, insertPlugin } from "@directories/plugins/insert";
+import { componentInputSchema } from "@directories/plugins/types";
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { resolveGithubRepoIdFromRepository } from "@/lib/github-plugin/parse";
-import { InsertPluginError, insertPlugin } from "@/lib/plugins/insert";
-import { componentInputSchema } from "@/lib/plugins/types";
+import { kickDrainAfterResponse } from "@/lib/plugins/queue";
 import { pluginScanLimit } from "@/lib/rate-limit";
+import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 
 export const createPluginAction = authActionClient
@@ -53,9 +55,10 @@ export const createPluginAction = authActionClient
         maxWaitMs: 3000,
       });
 
-      let result: { id: string; slug: string };
+      let result: { id: string; slug: string; enqueued: boolean };
       try {
         result = await insertPlugin(
+          await createAdminClient(),
           {
             name,
             description,
@@ -84,6 +87,7 @@ export const createPluginAction = authActionClient
         throw err;
       }
 
+      if (result.enqueued) kickDrainAfterResponse();
       updateTag("plugins");
 
       return { slug: result.slug };

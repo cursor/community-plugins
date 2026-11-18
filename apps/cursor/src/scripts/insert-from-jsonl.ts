@@ -14,8 +14,9 @@
 
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import type { ParsedPlugin } from "@/lib/github-plugin/parse";
-import { InsertPluginError, insertPlugin } from "@/lib/plugins/insert";
+import type { ParsedPlugin } from "@directories/plugins/github";
+import { InsertPluginError, insertPlugin } from "@directories/plugins/insert";
+import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 type ExtractedRow = {
   github_repo_id: number;
@@ -91,6 +92,8 @@ async function main() {
     by_source: {} as Record<string, number>,
   };
 
+  const supabase = await createAdminClient();
+
   for await (const row of readRows(args.input)) {
     if (summary.processed >= args.limit) break;
     summary.processed++;
@@ -109,6 +112,7 @@ async function main() {
 
     try {
       const { slug } = await insertPlugin(
+        supabase,
         {
           name: row.parsed.name,
           description: row.parsed.description,

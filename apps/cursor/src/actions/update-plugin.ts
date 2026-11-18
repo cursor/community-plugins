@@ -1,11 +1,15 @@
 "use server";
 
+import { refreshGrokBotAddable } from "@directories/plugins/grok-bot-add";
+import { resolveComponentSlug } from "@directories/plugins/slug";
+import {
+  type ComponentInput,
+  componentInputSchema,
+} from "@directories/plugins/types";
 import { updateTag } from "next/cache";
 import { z } from "zod";
 import { enqueuePluginScan, kickDrainAfterResponse } from "@/lib/plugins/queue";
-import { type ComponentInput, componentInputSchema } from "@/lib/plugins/types";
 import { pluginScanLimit } from "@/lib/rate-limit";
-import { resolveComponentSlug } from "@/lib/slug";
 import { createClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 
@@ -226,6 +230,13 @@ export const updatePluginAction = authActionClient
         } catch (queueError) {
           console.error("Failed to enqueue plugin scan", queueError);
         }
+      }
+
+      // The components may have changed what Grok Bot can add.
+      try {
+        await refreshGrokBotAddable(await createClient(), id);
+      } catch (err) {
+        console.error("Failed to set grok_bot_addable", err);
       }
 
       updateTag("plugins");

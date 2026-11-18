@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "@directories/plugins/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ComponentType } from "@/lib/plugins/types";
 import UploadLogo from "../upload-logo";
 import {
   type ComponentDraft,

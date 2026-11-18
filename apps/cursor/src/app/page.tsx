@@ -33,6 +33,7 @@ function toLeaderboardItem(
     author: p.author_name,
     authorUrl: p.author_url,
     verified: p.verified,
+    official: !!p.marketplace_plugin_id,
     installCount: p.install_count,
     installs30d,
     starCount: p.star_count,

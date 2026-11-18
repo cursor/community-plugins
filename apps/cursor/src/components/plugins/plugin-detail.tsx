@@ -1,5 +1,11 @@
 "use client";
 
+import { cursorMarketplaceUrl } from "@directories/plugins/apps";
+import {
+  COMPONENT_TYPE_LABELS_PLURAL,
+  type ComponentType,
+  type PluginRow,
+} from "@directories/plugins/types";
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
@@ -7,11 +13,6 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { trackInstallAction } from "@/actions/track-install";
 import { ExternalLinkIcon } from "@/components/icons/external-link-icon";
-import {
-  COMPONENT_TYPE_LABELS_PLURAL,
-  type ComponentType,
-  type PluginRow,
-} from "@/lib/plugins/types";
 import { cn, formatCount } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { GenericComponentSection } from "./detail/generic-component-section";
@@ -19,6 +20,7 @@ import { McpSection } from "./detail/mcp-section";
 import { PluginLogo } from "./detail/plugin-logo";
 import { RulesSection } from "./detail/rules-section";
 import { ScanStatusBanner } from "./detail/scan-status-banner";
+import { OfficialBadge } from "./official-badge";
 import { PluginAdminPanel } from "./plugin-admin-panel";
 import { PluginOwnerMenu } from "./plugin-owner-menu";
 import { StarButton } from "./star-button";
@@ -70,8 +72,10 @@ export function PluginDetailView({ plugin }: { plugin: PluginRow }) {
   );
 
   // Component content stays visible for inactive plugins so owners can review;
-  // only one-click install is hidden.
-  const installable = plugin.active === true;
+  // only one-click install is hidden. Imported marketplace plugins have no
+  // component configs to install from; they install from the marketplace.
+  const imported = plugin.discovery_source === "marketplace";
+  const installable = plugin.active === true && !imported;
 
   return (
     <div className="min-h-screen px-4 pt-24 md:pt-32">
@@ -94,6 +98,7 @@ export function PluginDetailView({ plugin }: { plugin: PluginRow }) {
                   {plugin.name}
                 </h1>
                 {plugin.verified && <VerifiedBadge size="md" />}
+                {plugin.marketplace_plugin_id && <OfficialBadge size="md" />}
               </div>
               <div className="flex items-center gap-2">
                 <VerifyControls plugin={plugin} />
@@ -133,6 +138,17 @@ export function PluginDetailView({ plugin }: { plugin: PluginRow }) {
         </p>
 
         <div className="mb-10 flex items-center gap-4">
+          {plugin.marketplace_plugin_id && plugin.active && (
+            <Link
+              href={cursorMarketplaceUrl(plugin.marketplace_plugin_id)}
+              target="_blank"
+              onClick={handleInstall}
+              className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
+            >
+              <span>Install from Cursor Marketplace</span>
+              <ExternalLinkIcon />
+            </Link>
+          )}
           {plugin.homepage && (
             <Link
               href={plugin.homepage}

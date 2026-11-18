@@ -1,10 +1,10 @@
 "use client";
 
+import type { PluginComponent } from "@directories/plugins/types";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { CursorDeepLink } from "@/components/cursor-deeplink";
 import { ExternalLinkIcon } from "@/components/icons/external-link-icon";
-import type { PluginComponent } from "@/lib/plugins/types";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "./copy-button";
 import { buildMCPInstallDeepLink } from "./deeplinks";

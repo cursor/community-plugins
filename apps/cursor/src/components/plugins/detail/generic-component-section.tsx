@@ -1,11 +1,11 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import {
   COMPONENT_TYPE_LABELS_PLURAL,
   type ComponentType,
   type PluginComponent,
-} from "@/lib/plugins/types";
+} from "@directories/plugins/types";
+import { Card, CardContent } from "@/components/ui/card";
 import { AddToCursorOrCopy } from "./add-to-cursor-or-copy";
 import { CopyButton } from "./copy-button";
 

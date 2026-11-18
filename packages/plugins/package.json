@@ -1,0 +1,26 @@
+{
+  "name": "@directories/plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./apps": "./src/apps.ts",
+    "./github": "./src/github.ts",
+    "./grok-bot-add": "./src/grok-bot-add.ts",
+    "./insert": "./src/insert.ts",
+    "./marketplace": "./src/marketplace.ts",
+    "./mcp-config": "./src/mcp-config.ts",
+    "./mcp-inspect": "./src/mcp-inspect.ts",
+    "./moderation": "./src/moderation.ts",
+    "./queue": "./src/queue.ts",
+    "./slug": "./src/slug.ts",
+    "./stale": "./src/stale.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.105.3"
+  }
+}
