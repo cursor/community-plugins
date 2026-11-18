@@ -42,6 +42,12 @@ export function PluginLogo({
         logo.endsWith(".svg") && "invert",
       )}
       onError={() => setError(true)}
+      // Logos come from whatever host the plugin manifest points at (raw
+      // GitHub content for relative paths, anything for absolute URLs), so
+      // the image optimizer's remotePatterns allowlist would 500 the page
+      // for most of them. The card and leaderboard already render the same
+      // URLs as plain <img>; do the same here.
+      unoptimized
     />
   );
 }
