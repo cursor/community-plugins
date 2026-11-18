@@ -8,7 +8,9 @@
 //     <candidates.json> <log.jsonl> --park [--limit N]
 //
 // <candidates.json> is a list of { kind: "repo" | "server", key, name,
-// description, logo, homepage, cursor, sharedName } (see Candidate below).
+// description, logo, homepage, cursor, sharedName } (see Candidate below),
+// plus optional publisher, rename, slug and allowSameName for ones a person
+// decided on.
 //
 // The scan queue handles about one plugin a minute and members' submissions
 // share it, so imports must not be queued all at once:
@@ -50,6 +52,17 @@ type Candidate = {
   cursor: boolean;
   /** Its name is shared with another candidate: held for a person to name. */
   sharedName: boolean;
+  /** Who to credit a server to, when that isn't its name. */
+  publisher?: string;
+  /** A repository's plugin under another name than its own manifest gives. */
+  rename?: string;
+  /** Its address in the directory, when the one made from the name won't do. */
+  slug?: string;
+  /**
+   * List it although another plugin has the same name: a person decided the
+   * two are different things (or that the other isn't shown where this is).
+   */
+  allowSameName?: boolean;
 };
 
 type Outcome =
@@ -231,11 +244,15 @@ async function fromRepo(c: Candidate): Promise<Built> {
     .limit(1)
     .maybeSingle();
   if (existing) return { outcome: "exists", detail: { slug: existing.slug } };
-  if (await nameTaken(parsed.name)) return { outcome: "held_name_taken" };
+  const name = c.rename?.trim() || parsed.name;
+  if (!c.allowSameName && (await nameTaken(name))) {
+    return { outcome: "held_name_taken" };
+  }
   return {
     githubRepoId: parsed.github_repo_id ?? null,
     plugin: {
-      name: parsed.name,
+      name,
+      ...(c.slug ? { slug: c.slug } : {}),
       description: parsed.description,
       logo: parsed.logo ?? null,
       repository: parsed.repository,
@@ -272,7 +289,9 @@ async function fromServer(c: Candidate): Promise<Built> {
     const { slug } = existing.plugins as unknown as { slug: string };
     return { outcome: "exists", detail: { slug } };
   }
-  if (await nameTaken(name)) return { outcome: "held_name_taken" };
+  if (!c.allowSameName && (await nameTaken(name))) {
+    return { outcome: "held_name_taken" };
+  }
   const inspection = await inspectMcpServer(address);
   if (!inspection.ok) {
     return {
@@ -288,10 +307,11 @@ async function fromServer(c: Candidate): Promise<Built> {
     githubRepoId: null,
     plugin: {
       name,
+      ...(c.slug ? { slug: c.slug } : {}),
       description,
       logo: await workingLogo(c.logo),
       homepage: https(c.homepage),
-      author_name: name,
+      author_name: c.publisher?.trim() || name,
       components: [
         {
           type: "mcp_server",
