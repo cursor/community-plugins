@@ -64,13 +64,15 @@ export default async function HomePage({ searchParams }: Props) {
     <div className="shell start">
       <HomeIntro>
         <HomeDirectory bots={bots} apps={apps} appsCategory={appsCategory}>
+          {/* Says what this site is, and where the official one is. (The
+              getting started guide is under Guides in the header.) */}
           <a
-            href="https://x.ai/bot/guides/getting-started"
+            href="https://x.ai/bot/marketplace"
             target="_blank"
             rel="noopener noreferrer"
             className="announce"
           >
-            <b>New to Grok Bot?</b> · Read the getting started guide{" "}
+            <b>Community Directory</b> · Official picks are in the Marketplace{" "}
             <span className="arrow">↗</span>
           </a>
           <h1 className="hero-title" aria-label="Find a bot for every job">
