@@ -13,18 +13,34 @@ export function xHandleOf(user: User): string | null {
 }
 
 /**
- * After an X sign-in, fills the member's profile X link (the same
- * `social_x_link` cursor.directory's profile form edits) when it's empty, so
- * their bylines show their handle. A link the member set is never replaced.
+ * After an X sign-in, records what X said about the member:
+ *
+ * - `x_handle`, the handle itself. X checked it, so it is the address of
+ *   their creator profile (/creators/@handle). It follows them if they rename
+ *   on X, and a handle someone else held before is taken from that account.
+ * - `social_x_link`, the profile link cursor.directory's form edits, when it
+ *   is empty. A link the member set is never replaced.
  */
-export async function fillXLink(user: User) {
+export async function saveXProfile(user: User) {
   const handle = xHandleOf(user);
   if (!handle) return;
   const admin = await createAdminClient();
+  // `ilike` reads "_" as a wildcard, and X handles use it.
+  const { error: freeError } = await admin
+    .from("users")
+    .update({ x_handle: null })
+    .ilike("x_handle", handle.replace(/_/g, "\\_"))
+    .neq("id", user.id);
+  if (freeError) console.error("saveXProfile", freeError.message);
+  const { error: handleError } = await admin
+    .from("users")
+    .update({ x_handle: handle })
+    .eq("id", user.id);
+  if (handleError) console.error("saveXProfile", handleError.message);
   const { error } = await admin
     .from("users")
     .update({ social_x_link: `https://x.com/${handle}` })
     .eq("id", user.id)
     .is("social_x_link", null);
-  if (error) console.error("fillXLink", error.message);
+  if (error) console.error("saveXProfile", error.message);
 }

@@ -195,7 +195,10 @@ async function seedApps(owner: string) {
         author_name: "Zephyr Labs",
         scan_status: "unscanned",
       }),
-      plugin(APP_FIXTURES.community, { owner_id: owner }),
+      plugin(APP_FIXTURES.community, {
+        owner_id: owner,
+        discovery_source: "user",
+      }),
       plugin(APP_FIXTURES.legacy, {}),
       plugin(APP_FIXTURES.flagged, {
         owner_id: owner,

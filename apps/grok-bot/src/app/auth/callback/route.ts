@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseSignInMethod, rememberSignIn } from "@/lib/last-sign-in";
 import { safeNextPath } from "@/lib/safe-next";
-import { fillXLink } from "@/lib/x-profile";
+import { saveXProfile } from "@/lib/x-profile";
 import { createClient } from "@/utils/supabase/server";
 
 // Mirrors apps/cursor/src/app/auth/callback/route.ts.
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       // Best effort; a failure here shouldn't block signing in.
-      if (via === "x") await fillXLink(data.user).catch(() => {});
+      if (via === "x") await saveXProfile(data.user).catch(() => {});
       const forwardedHost = request.headers.get("x-forwarded-host");
       const response =
         process.env.NODE_ENV !== "development" && forwardedHost

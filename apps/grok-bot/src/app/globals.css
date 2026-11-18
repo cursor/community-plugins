@@ -787,6 +787,16 @@ img {
 .row-title .by {
   color: var(--muted);
 }
+.row-title .by a {
+  color: inherit;
+}
+@media (hover: hover) {
+  .row-title .by a:hover {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
 .row-desc {
   margin: 1px 0 0;
   font-size: 14px;
@@ -895,6 +905,23 @@ img {
     text-underline-offset: 3px;
   }
 }
+/* Creator profile (/creators/<handle>) */
+.creator-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.creator-who {
+  flex: 1;
+  min-width: 200px;
+}
+.creator-head h1 {
+  margin: 0 0 2px;
+}
+.creator-list {
+  margin-top: 48px;
+}
 .detail-desc {
   margin: 16px 0 24px;
   max-width: 760px;
@@ -1002,6 +1029,11 @@ img {
 }
 .subs-head .lede {
   margin: 0;
+}
+.subs-profile {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 .sub-list {
   display: flex;

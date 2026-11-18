@@ -15,6 +15,10 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/opengraph-image": ["./public/og/**", "./public/brand/**"],
     "/bots/[slug]/opengraph-image": ["./public/bots/**", "./public/brand/**"],
+    "/creators/[handle]/opengraph-image": [
+      "./public/bots/**",
+      "./public/brand/**",
+    ],
     "/apps/[slug]/opengraph-image": ["./public/brand/**"],
   },
   images: {

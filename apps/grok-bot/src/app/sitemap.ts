@@ -1,16 +1,20 @@
 import type { MetadataRoute } from "next";
 import { listApps } from "@/data/apps";
 import { listListedBots } from "@/data/bots";
+import { listCreators } from "@/data/creators";
+import { creatorPath } from "@/lib/creator-handle";
 import { siteUrl } from "@/lib/og";
 
-// The home page, the Apps tab, and every listed bot and app.
+// The home page, the Apps tab, every listed bot and app, and the profile of
+// every creator who has one listed.
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const [bots, apps] = await Promise.all([
+  const [bots, apps, creators] = await Promise.all([
     listListedBots().catch(() => []),
     listApps().catch(() => []),
+    listCreators().catch(() => []),
   ]);
   return [
     { url: base, changeFrequency: "daily", priority: 1 },
@@ -26,6 +30,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(app.createdAt),
       changeFrequency: "weekly" as const,
       priority: 0.6,
+    })),
+    ...creators.map((creator) => ({
+      url: `${base}${creatorPath(creator.handle)}`,
+      ...(creator.updatedAt
+        ? { lastModified: new Date(creator.updatedAt) }
+        : {}),
+      changeFrequency: "weekly" as const,
+      priority: 0.5,
     })),
   ];
 }
