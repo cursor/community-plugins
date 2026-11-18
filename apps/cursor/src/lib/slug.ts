@@ -19,13 +19,28 @@ export const MAX_SLUG_LENGTH = 80;
  * rather than turned into separators.
  */
 export function slugify(value: string): string {
-  return value
+  const slug = value
     .toLowerCase()
     .replace(/['".]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, MAX_SLUG_LENGTH)
     .replace(/-+$/g, "");
+  // Punctuation-only or non-Latin input (e.g. "C++", "你好", "...") collapses to "", which would
+  // give empty, colliding slugs that feed DB writes and routes. Fall back to a stable, non-empty
+  // id derived from the original value so distinct inputs stay distinct.
+  if (slug) return slug;
+  return `x${stableHash(value)}`;
+}
+
+/** Dependency-free FNV-1a hash, base36, for a stable non-empty slug fallback. */
+function stableHash(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 /**
