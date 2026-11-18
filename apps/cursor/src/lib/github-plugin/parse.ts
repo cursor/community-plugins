@@ -154,19 +154,34 @@ export async function fetchWithRateLimit(
 
     if (res.status !== 429 && res.status !== 403) return res;
 
-    // Distinguish "rate-limited" 403 from "forbidden" 403 by checking the
-    // X-RateLimit-Remaining header. A real auth/permission 403 has remaining > 0.
+    const retryAfterHeader = res.headers.get("retry-after");
+    const retryAfter = Number(retryAfterHeader ?? "");
     const remaining = Number(res.headers.get("x-ratelimit-remaining") ?? "");
-    if (res.status === 403 && Number.isFinite(remaining) && remaining > 0) {
+
+    // Distinguish "rate-limited" 403 from "forbidden" 403. A primary-limit 403
+    // has remaining === 0; a secondary-limit 403 (too many concurrent requests,
+    // too many points per minute) carries a retry-after header while remaining
+    // can still be > 0. Only a 403 with budget left and no retry-after is a real
+    // auth/permission answer.
+    if (
+      res.status === 403 &&
+      retryAfterHeader === null &&
+      Number.isFinite(remaining) &&
+      remaining > 0
+    ) {
       return res;
     }
 
-    const retryAfter = Number(res.headers.get("retry-after") ?? "");
     const reset = Number(res.headers.get("x-ratelimit-reset") ?? "0") * 1000;
+    // GitHub's documented order: honour retry-after; else, if remaining is 0,
+    // wait for the reset; else (secondary limit without a retry-after) wait a
+    // minute before retrying.
     let waitMs =
       Number.isFinite(retryAfter) && retryAfter > 0
         ? retryAfter * 1000
-        : Math.max(reset - Date.now(), 1000);
+        : remaining === 0
+          ? Math.max(reset - Date.now(), 1000)
+          : 60_000;
     waitMs = Math.min(waitMs, maxWaitMs - totalWait);
 
     if (waitMs <= 0 || attempt === maxAttempts) return res;
