@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { getBotByShareId, uniqueBotSlug } from "@/data/bots";
+import { getBotByShareId, removedByOwner, uniqueBotSlug } from "@/data/bots";
 import { reviewBot } from "@/lib/ai-review";
-import { getViewer, type Viewer } from "@/lib/auth";
+import { getViewer } from "@/lib/auth";
 import { guessCategory } from "@/lib/category-pick";
+import { authorToCredit } from "@/lib/credit";
 import {
   type BotAuthor,
-  findAuthor,
   getPublicTemplate,
   type ShareTemplate,
 } from "@/lib/grok-bot-api";
@@ -20,35 +20,31 @@ export type PreviewResult =
   | {
       ok: true;
       template: ShareTemplate;
-      /** Who x.ai says made the bot; null when it doesn't say. */
+      /** Who the listing will credit; null is the submitter's profile. */
       author: BotAuthor | null;
-      existing: { slug: string; status: string; yours: boolean } | null;
+      existing: {
+        slug: string;
+        status: string;
+        yours: boolean;
+        /** The viewer may submit it again (see mayResubmit). */
+        resubmit: boolean;
+      } | null;
     }
   | { ok: false; error: "invalid" | "not_found" | "team" | "unavailable" };
 
-const sameName = (a: string, b: string) =>
-  a.trim().toLowerCase().replace(/\s+/g, " ") ===
-  b.trim().toLowerCase().replace(/\s+/g, " ");
-
 /**
- * The person to credit, in order: the marketplace creator, the owner x.ai
- * names on the share card, or (null) the submitter. A bare x.ai name that
- * matches the submitter is them, so their profile (photo, X handle) wins.
+ * One listing per bot, across everyone. Its owner may send it again when a
+ * reviewer declined it or when they took it down themselves; a bot an admin
+ * unlisted stays down.
  */
-async function authorToCredit(
-  template: ShareTemplate,
-  viewer: Viewer | null,
-): Promise<BotAuthor | null> {
-  const author = await findAuthor(template);
-  if (
-    author &&
-    viewer &&
-    !author.image &&
-    !author.xHandle &&
-    sameName(author.name, viewer.name)
-  )
-    return null;
-  return author;
+async function mayResubmit(
+  existing: { id: string; status: string; owner_id: string | null },
+  viewerId: string | undefined,
+): Promise<boolean> {
+  if (!viewerId || existing.owner_id !== viewerId) return false;
+  if (existing.status === "declined") return true;
+  if (existing.status !== "unlisted") return false;
+  return (await removedByOwner([existing.id], viewerId)).has(existing.id);
 }
 
 /** Reads a pasted share link so the form can show the bot before submitting. */
@@ -67,6 +63,7 @@ export async function previewShareLink(link: string): Promise<PreviewResult> {
         slug: row.slug,
         status: row.status,
         yours: !!viewer && row.owner_id === viewer.id,
+        resubmit: await mayResubmit(row, viewer?.id),
       }
     : null;
   return { ok: true, template: lookup.template, author, existing };
@@ -99,13 +96,8 @@ export async function submitBot(link: string): Promise<SubmitResult> {
   if (lookup.status !== "ok") return { ok: false, error: lookup.status };
   const { template } = lookup;
 
-  // One listing per bot, across everyone. Only the owner of a declined
-  // submission may send it again.
   const existing = await getBotByShareId(shareId);
-  if (
-    existing &&
-    !(existing.status === "declined" && existing.owner_id === viewer.id)
-  ) {
+  if (existing && !(await mayResubmit(existing, viewer.id))) {
     return { ok: false, error: "duplicate" };
   }
 

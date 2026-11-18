@@ -52,7 +52,17 @@ export type DirectoryBot = {
      * profile is public.
      */
     profile: string | null;
+    /**
+     * The name is the one on the bot's share card (or the marketplace's
+     * creator); otherwise the bot is credited to its submitter's profile.
+     */
+    fromCard: boolean;
   };
+  /**
+   * Its owner took it out of the directory themselves (set only by
+   * listBotsByOwner; an admin's unlisting isn't theirs to undo).
+   */
+  removedByOwner: boolean;
   /** The member who submitted it, when their profile is public. */
   submitter: string | null;
 };
@@ -149,6 +159,7 @@ async function toDirectoryBots(
             image: row.creator_image,
             xHandle: row.creator_x_handle,
             profile,
+            fromCard: true,
           }
         : owner
           ? {
@@ -156,13 +167,16 @@ async function toDirectoryBots(
               image: owner.image,
               xHandle: owner.x_handle ?? xHandleFromLink(owner.social_x_link),
               profile,
+              fromCard: false,
             }
           : {
               name: "Grok Bot community",
               image: null,
               xHandle: null,
               profile: null,
+              fromCard: false,
             },
+      removedByOwner: false,
       submitter: owner?.name ?? null,
     };
   });
@@ -241,7 +255,46 @@ export async function listBotsByOwner(
       .order("id")
       .range(from, to),
   );
-  return toDirectoryBots(rows);
+  const [bots, removed] = await Promise.all([
+    toDirectoryBots(rows),
+    removedByOwner(
+      rows.filter((r) => r.status === "unlisted").map((r) => r.id),
+      ownerId,
+    ),
+  ]);
+  return bots.map((bot) => ({ ...bot, removedByOwner: removed.has(bot.id) }));
+}
+
+/**
+ * Which of these unlisted bots their owner took down themselves: the ones
+ * whose latest unlisting in the moderation log is the owner's own.
+ */
+export async function removedByOwner(
+  botIds: string[],
+  ownerId: string,
+): Promise<Set<string>> {
+  if (botIds.length === 0) return new Set();
+  const admin = await createAdminClient();
+  const events = await allRowsIn<{
+    id: number;
+    bot_id: string;
+    actor_id: string | null;
+  }>(botIds, (group, from, to) =>
+    admin
+      .from("grok_bot_moderation_events")
+      .select("id, bot_id, actor_id", { count: "exact" })
+      .in("bot_id", group)
+      .eq("action", "unlist")
+      .order("id")
+      .range(from, to),
+  );
+  const latest = new Map<string, string | null>();
+  for (const e of events.sort((a, b) => a.id - b.id)) {
+    latest.set(e.bot_id, e.actor_id);
+  }
+  return new Set(
+    [...latest].filter(([, actor]) => actor === ownerId).map(([id]) => id),
+  );
 }
 
 export async function listBotsForReview(): Promise<DirectoryBot[]> {
