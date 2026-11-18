@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/review-bots",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/feed-parked-scans",
+      "schedule": "* * * * *"
     }
   ]
 }

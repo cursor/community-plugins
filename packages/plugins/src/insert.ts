@@ -52,6 +52,15 @@ export type InsertPluginOptions = {
    * scan_status='pending'` and enqueue the scan via `enqueuePluginScan`.
    */
   skipScan?: boolean;
+  /**
+   * When true, insert as `active=false, scan_status='unscanned'` and don't
+   * queue the scan: the plugin waits, hidden, until something queues it. Used
+   * by bulk imports that mustn't crowd members' submissions out of the scan
+   * queue; the Grok Bot Directory's feed-parked-scans cron queues parked
+   * plugins a few at a time. Give them an `import:…` source. Wins over
+   * `skipScan`.
+   */
+  park?: boolean;
 };
 
 export class InsertPluginError extends Error {
@@ -78,7 +87,8 @@ export async function insertPlugin(
   input: InsertPluginInput,
   options: InsertPluginOptions,
 ): Promise<{ id: string; slug: string; enqueued: boolean }> {
-  const skipScan = options.skipScan === true;
+  const park = options.park === true;
+  const skipScan = !park && options.skipScan === true;
 
   const { data: plugin, error: pluginError } = await supabase
     .from("plugins")
@@ -97,7 +107,7 @@ export async function insertPlugin(
       owner_id: options.ownerId,
       active: skipScan,
       plan: "standard",
-      scan_status: skipScan ? "unscanned" : "pending",
+      scan_status: skipScan || park ? "unscanned" : "pending",
       discovery_source: options.source,
       github_repo_id: options.githubRepoId ?? null,
     })
@@ -158,7 +168,7 @@ export async function insertPlugin(
   }
 
   let enqueued = false;
-  if (!skipScan) {
+  if (!skipScan && !park) {
     try {
       await enqueuePluginScan(supabase, plugin.id);
       enqueued = true;
