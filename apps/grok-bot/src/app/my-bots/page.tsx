@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
 import { CardBot, SceneBot } from "@/components/bot-art";
 import { CopyLink } from "@/components/copy-link";
+import { CreditChoice, RemoveBot } from "@/components/my-submission-controls";
 import { Segmented } from "@/components/segmented";
 import { type AppSubmission, listAppsByOwner } from "@/data/apps";
 import {
@@ -71,6 +72,12 @@ export default async function MyBotsPage({ searchParams }: Props) {
     ),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   const shown = status === "all" ? all : all.filter((s) => s.status === status);
+  // The credit their listed and pending bots show: a name from a share
+  // card, if any still does.
+  const credited = bots.filter(
+    (b) => b.status === "listed" || b.status === "pending",
+  );
+  const cardName = credited.find((b) => b.creator.fromCard)?.creator.name;
   const count = (s: BotStatus | "all") =>
     s === "all" ? all.length : all.filter((x) => x.status === s).length;
 
@@ -100,6 +107,9 @@ export default async function MyBotsPage({ searchParams }: Props) {
           </Link>
         </div>
       </div>
+      {credited.length > 0 && (
+        <CreditChoice cardName={cardName ?? null} profileName={viewer.name} />
+      )}
       <Segmented
         label="Filter by status"
         value={status}
@@ -159,7 +169,10 @@ export default async function MyBotsPage({ searchParams }: Props) {
 }
 
 function BotSubmission({ bot, fresh }: { bot: DirectoryBot; fresh: boolean }) {
-  const st = STATUS[bot.status];
+  // A bot its owner took down reads as theirs to put back.
+  const st = bot.removedByOwner
+    ? { label: "Removed", cls: "off" }
+    : STATUS[bot.status];
   return (
     <article
       className={`sub${fresh ? " fresh" : ""}`}
@@ -205,7 +218,9 @@ function BotSubmission({ bot, fresh }: { bot: DirectoryBot; fresh: boolean }) {
           {(bot.status === "declined" || bot.status === "unlisted") &&
             bot.reviewedAt && (
               <span>
-                · {st.label} {formatRelativeDate(bot.reviewedAt)}
+                · {st.label}
+                {bot.removedByOwner ? " by you" : ""}{" "}
+                {formatRelativeDate(bot.reviewedAt)}
               </span>
             )}
         </div>
@@ -215,7 +230,7 @@ function BotSubmission({ bot, fresh }: { bot: DirectoryBot; fresh: boolean }) {
           </div>
         )}
         <div className="sub-actions">
-          {bot.status === "declined" && (
+          {(bot.status === "declined" || bot.removedByOwner) && (
             <Link
               className="btn btn-gray btn-sm"
               href={`/submit?link=${encodeURIComponent(shareUrl(bot.shareId))}`}
@@ -227,6 +242,13 @@ function BotSubmission({ bot, fresh }: { bot: DirectoryBot; fresh: boolean }) {
             <Link className="btn btn-gray btn-sm" href={`/bots/${bot.slug}`}>
               View listing
             </Link>
+          )}
+          {(bot.status === "listed" || bot.status === "pending") && (
+            <RemoveBot
+              botId={bot.id}
+              name={bot.name}
+              pending={bot.status === "pending"}
+            />
           )}
         </div>
       </div>

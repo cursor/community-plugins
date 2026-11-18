@@ -86,9 +86,8 @@ export function SubmitForm({
   const preview =
     state.phase === "done" && state.result.ok ? state.result : null;
   const existing = preview?.existing;
-  // Only the owner of a declined submission may send it again.
-  const blocked =
-    !!existing && !(existing.status === "declined" && existing.yours);
+  // Its owner may send a declined bot, or one they removed, again.
+  const blocked = !!existing && !existing.resubmit;
   const linkError =
     state.phase === "invalid" && touched
       ? ERRORS.invalid
@@ -247,16 +246,20 @@ export function SubmitForm({
       {existing && (
         <div className="already" data-testid="already-submitted">
           <span>
-            {existing.yours
-              ? "You already submitted this bot."
-              : "Someone already submitted this bot."}
+            {existing.resubmit && existing.status === "unlisted"
+              ? "You removed this bot. Submit it again to send it back to review."
+              : existing.yours
+                ? "You already submitted this bot."
+                : "Someone already submitted this bot."}
           </span>
           <span>
-            <span
-              className={`status ${STATUS_LABEL[existing.status]?.[1] ?? ""}`}
-            >
-              {STATUS_LABEL[existing.status]?.[0] ?? existing.status}
-            </span>{" "}
+            {!(existing.resubmit && existing.status === "unlisted") && (
+              <span
+                className={`status ${STATUS_LABEL[existing.status]?.[1] ?? ""}`}
+              >
+                {STATUS_LABEL[existing.status]?.[0] ?? existing.status}
+              </span>
+            )}{" "}
             {existing.status === "listed" ? (
               <Link href={`/bots/${existing.slug}`}>View listing</Link>
             ) : existing.yours ? (

@@ -1121,6 +1121,30 @@ img {
   gap: 8px;
   flex-wrap: wrap;
 }
+.sub-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+/* Which name the member's bots are credited to. */
+.credit-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 14px;
+  color: var(--muted);
+}
+.credit-choice b {
+  font-weight: 500;
+  color: var(--fg);
+}
 .subs-empty {
   text-align: center;
   padding: 48px 0 8px;
