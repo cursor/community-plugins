@@ -39,9 +39,6 @@ const UNTRUSTED_NOTE =
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Matches the stuck-scan threshold in getStuckScans(): older pending/scanning
-// rows are treated as stuck and may be re-scanned.
-const SCAN_IN_PROGRESS_MS = 15 * 60 * 1000;
 const MAX_COMPONENT_CONTENT_CHARS = 4000;
 const MAX_SUMMARY_CHARS = 500;
 
@@ -534,20 +531,15 @@ export function registerModerationTools(server: McpServer) {
       annotations: { ...write, idempotentHint: false },
     },
     adminTool(async ({ plugin }, admin) => {
-      const state = await getPluginModerationState(
-        await resolvePluginId(plugin),
-      );
-      const inProgress =
-        (state.scan_status === "pending" || state.scan_status === "scanning") &&
-        Date.now() - new Date(state.updated_at).getTime() < SCAN_IN_PROGRESS_MS;
-      if (inProgress) {
-        throw new ToolError(
-          `A scan for "${state.slug}" is already ${state.scan_status}. Check again in a few minutes.`,
-        );
-      }
+      // rescanPlugin refuses with a ModerationError while a scan is queued or
+      // running (same check the admin UI buttons go through); adminTool turns
+      // that into the error text.
       return changed(
         "Re-scan queued",
-        await rescanPlugin(await beginWrite(admin), state.id),
+        await rescanPlugin(
+          await beginWrite(admin),
+          await resolvePluginId(plugin),
+        ),
       );
     }),
   );
