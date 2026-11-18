@@ -1,9 +1,14 @@
 // A member's public handle, the last part of their profile's address,
 // /u/<handle> (as on cursor.directory, whose profiles these share). Someone
-// who signed in with X goes by "@" and that handle (X checked it, so nobody
-// else can take it); everyone else goes by their profile's slug, which is
-// theirs on cursor.directory too. A slug never starts with "@", so the two
-// can't be confused.
+// who signed in with X goes by that handle, which X checked, so it is
+// theirs to claim; everyone else goes by their profile's slug, which is
+// theirs on cursor.directory too. Both are written plainly: /u/kevinrose,
+// /u/pontus.
+//
+// The two share one set of names, so an address is read as an X handle
+// first and a slug second (src/data/creators.ts). If a slug ever equals
+// someone else's X handle, the address is the X handle's: signing up under a
+// name can't take the address of the person who holds it on X.
 
 const X_HANDLE = /^[A-Za-z0-9_]{1,15}$/;
 
@@ -11,16 +16,10 @@ export function creatorHandle(member: {
   slug: string;
   x_handle: string | null;
 }): string {
-  return member.x_handle ? `@${member.x_handle}` : member.slug;
+  return member.x_handle ?? member.slug;
 }
 
 export const creatorPath = (handle: string) => `/u/${handle}`;
-
-/** The X handle in "@handle", or null when it isn't one. */
-export function xHandleIn(handle: string): string | null {
-  const name = handle.startsWith("@") ? handle.slice(1) : null;
-  return name && X_HANDLE.test(name) ? name : null;
-}
 
 export const isXHandle = (value: string) => X_HANDLE.test(value);
 

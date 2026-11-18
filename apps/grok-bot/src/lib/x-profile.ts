@@ -16,7 +16,7 @@ export function xHandleOf(user: User): string | null {
  * After an X sign-in, records what X said about the member:
  *
  * - `x_handle`, the handle itself. X checked it, so it is the address of
- *   their profile (/u/@handle). It follows them if they rename
+ *   their profile (/u/handle). It follows them if they rename
  *   on X, and a handle someone else held before is taken from that account.
  * - `social_x_link`, the profile link cursor.directory's form edits, when it
  *   is empty. A link the member set is never replaced.

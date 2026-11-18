@@ -20,49 +20,69 @@ const profileOf = async () => {
   return data as { slug: string; x_handle: string | null };
 };
 
-// A second fixture member, who has submitted a bot that isn't listed.
-const QUIET_EMAIL = "e2e-quiet@grok-bot.local";
-
-async function memberWithNothingListed(): Promise<{ slug: string }> {
+/** A fixture member (created once) and their profile's slug. */
+async function fixtureMember(
+  email: string,
+  name: string,
+): Promise<{ id: string; slug: string }> {
   const admin = db();
   const { data: list, error } = await admin.auth.admin.listUsers({
     perPage: 1000,
   });
   if (error) throw error;
-  let id = list.users.find((u) => u.email === QUIET_EMAIL)?.id;
+  let id = list.users.find((u) => u.email === email)?.id;
   if (!id) {
     const created = await admin.auth.admin.createUser({
-      email: QUIET_EMAIL,
+      email,
       password: "local-dev-only-password",
       email_confirm: true,
-      user_metadata: { name: "E2E Quiet Member" },
+      user_metadata: { name },
     });
     if (created.error) throw created.error;
     id = created.data.user.id;
   }
-  // Fixture bots go by the "e2e-" slug prefix, so seeding clears this one.
-  const { error: botError } = await admin.from("grok_bots").upsert(
-    {
-      slug: "e2e-zephyr-quiet",
-      name: "Zephyr Fixture Quiet",
-      description: "Still in review.",
-      share_id: "e2eFixtureQuiet01",
-      avatar_shape: "blob",
-      avatar_color: "blue",
-      category: "operations",
-      status: "pending",
-      source: "submission",
-      owner_id: id,
-    },
-    { onConflict: "slug" },
-  );
-  if (botError) throw botError;
   const { data } = await admin
     .from("users")
     .select("slug")
     .eq("id", id)
     .single();
-  return data as { slug: string };
+  return { id, slug: (data as { slug: string }).slug };
+}
+
+/** A fixture bot of `owner`'s. Its "e2e-" slug means seeding clears it. */
+async function fixtureBot(
+  owner: string,
+  key: string,
+  status: "pending" | "listed",
+) {
+  const { error } = await db()
+    .from("grok_bots")
+    .upsert(
+      {
+        slug: `e2e-zephyr-${key}`,
+        name: `Zephyr Fixture ${key}`,
+        description: "A fixture bot.",
+        share_id: `e2eFixture${key}01`.slice(0, 20).padEnd(12, "0"),
+        avatar_shape: "blob",
+        avatar_color: "blue",
+        category: "operations",
+        status,
+        source: "submission",
+        owner_id: owner,
+      },
+      { onConflict: "slug" },
+    );
+  if (error) throw error;
+}
+
+// A member whose only submission is still in review.
+async function memberWithNothingListed(): Promise<{ slug: string }> {
+  const member = await fixtureMember(
+    "e2e-quiet@grok-bot.local",
+    "E2E Quiet Member",
+  );
+  await fixtureBot(member.id, "Quiet", "pending");
+  return member;
 }
 
 test.describe("profiles", () => {
@@ -142,10 +162,10 @@ test.describe("profiles", () => {
       .from("users")
       .update({ x_handle: "Zephyr_Dev" })
       .eq("id", await devUserId());
-    // The handle, however it's written, and the old slug all land on it.
-    for (const written of ["@Zephyr_Dev", "@zephyr_dev", "Zephyr_Dev", slug]) {
+    // However the handle is written, and by the old slug, it's one address.
+    for (const written of ["Zephyr_Dev", "zephyr_dev", "@Zephyr_Dev", slug]) {
       await page.goto(`/u/${written}`);
-      await expect(page).toHaveURL(/\/u\/@Zephyr_Dev$/);
+      await expect(page).toHaveURL(/\/u\/Zephyr_Dev$/);
     }
     await expect(page.getByTestId("creator-profile")).toContainText(
       "@Zephyr_Dev",
@@ -156,13 +176,30 @@ test.describe("profiles", () => {
         .getByTestId("bot-row")
         .filter({ hasText: FIXTURES.alpha.name })
         .getByTestId("creator-link"),
-    ).toHaveAttribute("href", "/u/@Zephyr_Dev");
+    ).toHaveAttribute("href", "/u/Zephyr_Dev");
+  });
+
+  test("an X handle outranks a slug that spells the same", async ({ page }) => {
+    // One member's slug is "e2esame"; the dev user is @E2Esame on X.
+    const same = await fixtureMember("e2e-same@grok-bot.local", "e2esame");
+    expect(same.slug).toBe("e2esame");
+    await fixtureBot(same.id, "Same", "listed");
+    await db()
+      .from("users")
+      .update({ x_handle: "E2Esame" })
+      .eq("id", await devUserId());
+    await page.goto("/u/e2esame");
+    await expect(page).toHaveURL(/\/u\/E2Esame$/);
+    await expect(
+      page.getByTestId("creator-profile").getByRole("heading", { level: 1 }),
+    ).toHaveText("Local Dev");
   });
 
   test("404s for a handle nobody has and a member with nothing listed", async ({
     request,
   }) => {
     expect((await request.get("/u/e2e-nobody-here")).status()).toBe(404);
+    expect((await request.get("/u/e2e_nobody")).status()).toBe(404);
     expect((await request.get("/u/@e2e_nobody")).status()).toBe(404);
     // A member whose only submission is still in review.
     const member = await memberWithNothingListed();
