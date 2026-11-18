@@ -17,7 +17,7 @@ const mcpHandler = createMcpHandler(
   },
   {
     serverInfo: {
-      name: "cursor-directory-community-plugins",
+      name: "community-plugins",
       version: "1.0.0",
     },
     instructions: MCP_SERVER_INSTRUCTIONS,

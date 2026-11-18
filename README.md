@@ -230,7 +230,7 @@ delete from public.admins where email = 'jane@cursor.com';
    ```json
    {
      "mcpServers": {
-       "cursor-directory": {
+       "community-plugins": {
          "url": "https://cursor.directory/api/mcp",
          "auth": {
            "CLIENT_ID": "12bb4179-e29a-4f99-a718-335ef4d0edb2",

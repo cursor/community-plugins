@@ -101,7 +101,7 @@ Next steps:
      PRODUCTION_MCP_CLIENT_ID in src/lib/mcp/auth.ts for production.
   2. Admins add this to their Cursor mcp.json:
 
-     "cursor-directory": {
+     "community-plugins": {
        "url": "<app origin>/api/mcp",
        "auth": { "CLIENT_ID": "${client.client_id}", "scopes": ["email"] }
      }

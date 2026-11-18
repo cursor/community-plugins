@@ -75,6 +75,8 @@ export const FLAG_CATEGORIES = [
   "spam",
   "nsfw",
   "impersonation",
+  // A second listing of something the directory already has.
+  "duplicate",
   "low_quality",
 ] as const;
 export type FlagCategory = (typeof FLAG_CATEGORIES)[number];
