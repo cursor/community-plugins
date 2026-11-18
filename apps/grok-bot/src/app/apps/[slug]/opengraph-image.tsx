@@ -1,7 +1,11 @@
 import { ImageResponse } from "next/og";
 import { colorFor, initials } from "@/components/member-avatar";
 import { getApp } from "@/data/apps";
-import { appCategoryLabel, primaryAppCategory } from "@/lib/app-categories";
+import {
+  appCategoryLabel,
+  creditedPublisher,
+  primaryAppCategory,
+} from "@/lib/app-categories";
 import { dataUri, OG_SIZE } from "@/lib/og";
 
 export const alt = "An app for Grok Bot on Grok Bot Directory";
@@ -108,7 +112,7 @@ export default async function Image({
           {app && (
             <div style={{ marginTop: 24, fontSize: 24, color: "#737373" }}>
               {[
-                app.publisher && `by ${app.publisher}`,
+                creditedPublisher(app) && `by ${creditedPublisher(app)}`,
                 app.marketplaceId ? "Official app" : "Community app",
                 category && appCategoryLabel(category),
               ]
