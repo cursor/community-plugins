@@ -190,6 +190,21 @@ export async function listApps(): Promise<DirectoryApp[]> {
     );
 }
 
+/**
+ * A member's listed apps, newest first: what their profile shows
+ * (`grok_bot_creator_apps_json()` in SQL, the Apps list's rule for one owner).
+ */
+export async function listAppsByCreator(
+  ownerId: string,
+): Promise<AppListItem[]> {
+  const admin = await createAdminClient();
+  const { data, error } = await admin.rpc("grok_bot_creator_apps_json", {
+    p_owner: ownerId,
+  });
+  if (error) throw error;
+  return ((data ?? []) as AppRow[]).map((row) => toAppListItem(toApp(row)));
+}
+
 function toolsFrom(value: unknown): AppComponent["tools"] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((t) =>

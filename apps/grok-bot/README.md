@@ -51,9 +51,24 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   those parts (gaze with foreshortening and lean, blinks, expression
   crossfades, squash-and-stretch hops) without drawing any new geometry.
   The empty, error and not-found pages use the faces as static CSS masks.
-- **Sharing:** `sitemap.xml` (listed bots and apps), `robots.txt`, and Open
-  Graph images for the home page, each bot and each app
-  (`opengraph-image.tsx`).
+- **Profiles:** `/u/<handle>` (as on cursor.directory, whose member
+  profiles these share) lists a member's listed bots and apps with their
+  name, photo and X handle, and nothing else: no pending
+  or declined submissions, no email, and no page for a member whose
+  cursor.directory profile isn't public or who has nothing listed. A member
+  who signed in with X goes by `@handle` (`users.x_handle`, written at each X
+  sign-in, so X has checked it); everyone else by their profile's slug. A
+  slug or a bare X handle redirects to the one address. Author names on bot
+  rows and bot pages link there, the account menu has "Your profile", and
+  "Your submissions" has the link to copy. `/creators/<handle>`, the first
+  address, redirects.
+- **Sharing:** `sitemap.xml` (listed bots and apps, and profiles),
+  `robots.txt`, and Open Graph images for the home page, each bot, each app
+  and each profile (`opengraph-image.tsx`).
+- **Long lists:** the hosted Data API returns at most 100 rows a request (a
+  local stack returns 1,000), so lists that can grow past that go through
+  `allRows` (`src/utils/supabase/all-rows.ts`) or a SQL function that returns
+  one JSON value.
 
 ## Apps
 

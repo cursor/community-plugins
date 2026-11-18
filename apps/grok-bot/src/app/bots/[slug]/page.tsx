@@ -7,6 +7,7 @@ import { BotRow } from "@/components/bot-row";
 import { MemberAvatar } from "@/components/member-avatar";
 import { getListedBot, listListedBots } from "@/data/bots";
 import { categoryLabel } from "@/lib/categories";
+import { creatorPath } from "@/lib/creator-handle";
 import { formatAdds, formatRelativeDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +63,14 @@ export default async function BotPage({ params }: Props) {
       <h1>{bot.name}</h1>
       <div className="byline">
         By{" "}
-        {bot.creator.xHandle ? (
+        {bot.creator.profile ? (
+          <Link
+            href={creatorPath(bot.creator.profile)}
+            data-testid="creator-link"
+          >
+            {bot.creator.name}
+          </Link>
+        ) : bot.creator.xHandle ? (
           <a
             href={`https://x.com/${bot.creator.xHandle}`}
             target="_blank"

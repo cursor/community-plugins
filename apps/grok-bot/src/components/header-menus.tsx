@@ -89,12 +89,17 @@ export function UserMenu({
   account,
   image,
   admin,
+  profile,
 }: {
   name: string;
   account: string | null;
   image: string | null;
   admin: boolean;
+  /** The member's public profile, when they have one. */
+  profile: string | null;
 }) {
+  // Each item's place in the menu, for the staggered entrance.
+  let place = 0;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -131,18 +136,28 @@ export function UserMenu({
         inert={!open}
         aria-hidden={!open}
       >
-        <div className="menu-who" data-testid="menu-who" style={nth(0)}>
+        <div className="menu-who" data-testid="menu-who" style={nth(place++)}>
           <Who name={name} account={account} />
         </div>
-        <Link href="/my-bots" role="menuitem" style={nth(1)}>
+        {profile && (
+          <Link
+            href={profile}
+            role="menuitem"
+            data-testid="menu-profile"
+            style={nth(place++)}
+          >
+            Your profile
+          </Link>
+        )}
+        <Link href="/my-bots" role="menuitem" style={nth(place++)}>
           Your submissions
         </Link>
         {admin && (
-          <Link href="/admin" role="menuitem" style={nth(2)}>
+          <Link href="/admin" role="menuitem" style={nth(place++)}>
             Admin
           </Link>
         )}
-        <SignOutButton style={nth(admin ? 3 : 2)} />
+        <SignOutButton style={nth(place++)} />
       </div>
     </div>
   );
@@ -151,10 +166,13 @@ export function UserMenu({
 export function MobileMenu({
   viewer,
   admin,
+  profile,
 }: {
   /** The signed-in member, or null. */
   viewer: { name: string; account: string | null } | null;
   admin: boolean;
+  /** The member's public profile, when they have one. */
+  profile: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -207,6 +225,11 @@ export function MobileMenu({
           <a href={GUIDES_URL} target="_blank" rel="noopener noreferrer">
             Guides
           </a>
+          {profile && (
+            <Link href={profile} data-testid="mobile-profile">
+              Your profile
+            </Link>
+          )}
           {viewer ? (
             <Link href="/my-bots">Your submissions</Link>
           ) : (

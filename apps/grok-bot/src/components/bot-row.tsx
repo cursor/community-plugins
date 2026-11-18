@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { DirectoryBot } from "@/data/bots";
+import { creatorPath } from "@/lib/creator-handle";
 import { AddButton } from "./add-button";
 import { RowBot } from "./bot-art";
 
@@ -42,7 +43,21 @@ export function BotRow({
             >
               {bot.name}
             </Link>
-            <span className="by"> by {bot.creator.name}</span>
+            <span className="by">
+              {" "}
+              by{" "}
+              {bot.creator.profile ? (
+                <Link
+                  href={creatorPath(bot.creator.profile)}
+                  data-testid="creator-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {bot.creator.name}
+                </Link>
+              ) : (
+                bot.creator.name
+              )}
+            </span>
           </div>
           <p className="row-desc">{bot.description}</p>
         </div>

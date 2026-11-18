@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
 import { CardBot, SceneBot } from "@/components/bot-art";
+import { CopyLink } from "@/components/copy-link";
 import { Segmented } from "@/components/segmented";
 import { type AppSubmission, listAppsByOwner } from "@/data/apps";
 import {
@@ -9,6 +10,7 @@ import {
   type DirectoryBot,
   listBotsByOwner,
 } from "@/data/bots";
+import { ownProfilePath } from "@/data/creators";
 import { appContents } from "@/lib/app-categories";
 import { requireViewer } from "@/lib/auth";
 import { categoryLabel } from "@/lib/categories";
@@ -43,9 +45,12 @@ export default async function MyBotsPage({ searchParams }: Props) {
     ...(status !== "all" ? { status } : {}),
   }).toString();
   const viewer = await requireViewer(`/my-bots${qs ? `?${qs}` : ""}`);
-  const [bots, apps] = await Promise.all([
+  // A profile exists once something is listed (and the member's
+  // cursor.directory profile is public).
+  const [bots, apps, profile] = await Promise.all([
     listBotsByOwner(viewer.id),
     listAppsByOwner(viewer.id),
+    ownProfilePath(viewer.id),
   ]);
   const all: Submission[] = [
     ...bots.map(
@@ -77,6 +82,14 @@ export default async function MyBotsPage({ searchParams }: Props) {
           <p className="lede">
             Bots and apps you’ve submitted and where they are in review.
           </p>
+          {profile && (
+            <div className="subs-profile" data-testid="public-profile">
+              <Link href={profile} className="btn btn-gray btn-sm">
+                View public profile
+              </Link>
+              <CopyLink url={profile} className="btn btn-gray btn-sm" />
+            </div>
+          )}
         </div>
         <div className="subs-actions">
           <Link href="/submit" className="btn">

@@ -2,6 +2,7 @@ import "server-only";
 
 import slugify from "slugify";
 import { type Body, bodyForShape } from "@/lib/avatar";
+import { creatorHandle } from "@/lib/creator-handle";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { allRows, allRowsIn } from "@/utils/supabase/all-rows";
 
@@ -45,7 +46,12 @@ export type DirectoryBot = {
     name: string;
     image: string | null;
     xHandle: string | null;
-    profileSlug: string | null;
+    /**
+     * The handle of the profile that lists this creator's bots and apps
+     * (/u/<handle>): the member who submitted the bot, when their
+     * profile is public.
+     */
+    profile: string | null;
   };
   /** The member who submitted it, when their profile is public. */
   submitter: string | null;
@@ -82,6 +88,7 @@ type Owner = {
   image: string | null;
   slug: string;
   social_x_link: string | null;
+  x_handle: string | null;
 };
 
 function xHandleFromLink(link: string | null): string | null {
@@ -104,7 +111,9 @@ async function toDirectoryBots(
     const found = await allRowsIn<Owner>(ownerIds, (group, from, to) =>
       admin
         .from("users")
-        .select("id, name, image, slug, social_x_link", { count: "exact" })
+        .select("id, name, image, slug, social_x_link, x_handle", {
+          count: "exact",
+        })
         .in("id", group)
         .eq("public", true)
         .order("id")
@@ -114,6 +123,7 @@ async function toDirectoryBots(
   }
   return rows.map((row) => {
     const owner = row.owner_id ? owners.get(row.owner_id) : undefined;
+    const profile = owner ? creatorHandle(owner) : null;
     return {
       id: row.id,
       slug: row.slug,
@@ -138,20 +148,20 @@ async function toDirectoryBots(
             name: row.creator_name,
             image: row.creator_image,
             xHandle: row.creator_x_handle,
-            profileSlug: null,
+            profile,
           }
         : owner
           ? {
               name: owner.name,
               image: owner.image,
-              xHandle: xHandleFromLink(owner.social_x_link),
-              profileSlug: owner.slug,
+              xHandle: owner.x_handle ?? xHandleFromLink(owner.social_x_link),
+              profile,
             }
           : {
               name: "Grok Bot community",
               image: null,
               xHandle: null,
-              profileSlug: null,
+              profile: null,
             },
       submitter: owner?.name ?? null,
     };
@@ -197,6 +207,25 @@ export async function getListedBot(slug: string): Promise<DirectoryBot | null> {
   if (!data) return null;
   const [bot] = await toDirectoryBots([data as BotRow]);
   return bot;
+}
+
+/** A member's listed bots, most added first: what their profile shows. */
+export async function listListedBotsByOwner(
+  ownerId: string,
+): Promise<DirectoryBot[]> {
+  const admin = await createAdminClient();
+  const rows = await allRows<BotRow>((from, to) =>
+    admin
+      .from("grok_bots")
+      .select(BOT_COLUMNS, { count: "exact" })
+      .eq("owner_id", ownerId)
+      .eq("status", "listed")
+      .order("install_count", { ascending: false })
+      .order("reviewed_at", { ascending: false, nullsFirst: false })
+      .order("id")
+      .range(from, to),
+  );
+  return toDirectoryBots(rows);
 }
 
 export async function listBotsByOwner(
