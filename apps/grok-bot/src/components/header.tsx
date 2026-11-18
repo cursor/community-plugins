@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ownProfilePath } from "@/data/creators";
 import { isAdmin, type Viewer } from "@/lib/auth";
 import { MobileMenu, SignInLink, TabLink, UserMenu } from "./header-menus";
 import { Lockup } from "./theme";
@@ -6,7 +7,13 @@ import { Lockup } from "./theme";
 export const GUIDES_URL = "https://x.ai/bot/guides";
 
 export async function Header({ viewer }: { viewer: Viewer | null }) {
-  const admin = viewer ? await isAdmin(viewer.id).catch(() => false) : false;
+  // The member's own profile, once they have something listed.
+  const [admin, profile] = viewer
+    ? await Promise.all([
+        isAdmin(viewer.id).catch(() => false),
+        ownProfilePath(viewer.id).catch(() => null),
+      ])
+    : [false, null];
   return (
     <header className="header">
       <div className="header-inner">
@@ -32,6 +39,7 @@ export async function Header({ viewer }: { viewer: Viewer | null }) {
               account={viewer.account}
               image={viewer.image}
               admin={admin}
+              profile={profile}
             />
           ) : (
             <SignInLink />
@@ -40,6 +48,7 @@ export async function Header({ viewer }: { viewer: Viewer | null }) {
         <MobileMenu
           viewer={viewer && { name: viewer.name, account: viewer.account }}
           admin={admin}
+          profile={profile}
         />
       </div>
     </header>

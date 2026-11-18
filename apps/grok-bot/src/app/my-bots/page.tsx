@@ -10,11 +10,10 @@ import {
   type DirectoryBot,
   listBotsByOwner,
 } from "@/data/bots";
-import { creatorById, hasProfile } from "@/data/creators";
+import { ownProfilePath } from "@/data/creators";
 import { appContents } from "@/lib/app-categories";
 import { requireViewer } from "@/lib/auth";
 import { categoryLabel } from "@/lib/categories";
-import { creatorPath } from "@/lib/creator-handle";
 import { formatRelativeDate } from "@/lib/format";
 import { shareUrl } from "@/lib/share-link";
 
@@ -46,15 +45,13 @@ export default async function MyBotsPage({ searchParams }: Props) {
     ...(status !== "all" ? { status } : {}),
   }).toString();
   const viewer = await requireViewer(`/my-bots${qs ? `?${qs}` : ""}`);
-  const [bots, apps, me, listed] = await Promise.all([
-    listBotsByOwner(viewer.id),
-    listAppsByOwner(viewer.id),
-    creatorById(viewer.id),
-    hasProfile(viewer.id),
-  ]);
   // A profile exists once something is listed (and the member's
   // cursor.directory profile is public).
-  const profile = me && listed ? creatorPath(me.handle) : null;
+  const [bots, apps, profile] = await Promise.all([
+    listBotsByOwner(viewer.id),
+    listAppsByOwner(viewer.id),
+    ownProfilePath(viewer.id),
+  ]);
   const all: Submission[] = [
     ...bots.map(
       (bot): Submission => ({

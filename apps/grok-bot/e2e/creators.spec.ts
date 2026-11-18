@@ -204,6 +204,17 @@ test.describe("creator profiles", () => {
     expect(res.headers()["content-type"]).toBe("image/png");
   });
 
+  test("the account menu has the member's own profile", async ({ page }) => {
+    const { slug } = await profileOf();
+    await signIn(page, "/");
+    await page.getByRole("button", { name: "Account menu" }).click();
+    const item = page.getByTestId("menu-profile");
+    await expect(item).toHaveAttribute("href", `/creators/${slug}`);
+    await item.click();
+    await expect(page).toHaveURL(new RegExp(`/creators/${slug}$`));
+    await expect(page.getByTestId("creator-profile")).toBeVisible();
+  });
+
   test("Your submissions links to the public profile", async ({ page }) => {
     const { slug } = await profileOf();
     await signIn(page, "/my-bots");

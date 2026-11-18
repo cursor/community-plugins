@@ -3,7 +3,12 @@ import "server-only";
 import { cache } from "react";
 import { type AppListItem, listAppsByCreator } from "@/data/apps";
 import { type DirectoryBot, listListedBotsByOwner } from "@/data/bots";
-import { creatorHandle, isXHandle, xHandleIn } from "@/lib/creator-handle";
+import {
+  creatorHandle,
+  creatorPath,
+  isXHandle,
+  xHandleIn,
+} from "@/lib/creator-handle";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**
@@ -71,8 +76,8 @@ async function findCreator(handle: string): Promise<Creator | null> {
   return isXHandle(handle) ? byXHandle(handle) : null;
 }
 
-/** A member's public handle and name, for a byline. Null when not public. */
-export async function creatorById(id: string): Promise<Creator | null> {
+/** A member as their profile shows them. Null when it isn't public. */
+async function creatorById(id: string): Promise<Creator | null> {
   const admin = await createAdminClient();
   const { data } = await admin
     .from("users")
@@ -109,13 +114,39 @@ export const getCreatorProfile = cache(
   },
 );
 
-/** Whether a member has a profile to link to (something listed). */
-export async function hasProfile(id: string): Promise<boolean> {
+/**
+ * Whether a member has something listed, so a profile to link to. It only
+ * counts, since the header asks on every page a signed-in member opens.
+ */
+async function hasListings(id: string): Promise<boolean> {
+  const admin = await createAdminClient();
   const [bots, apps] = await Promise.all([
-    listListedBotsByOwner(id),
-    listAppsByCreator(id),
+    admin
+      .from("grok_bots")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", id)
+      .eq("status", "listed"),
+    admin
+      .from("plugins")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", id)
+      .eq("active", true)
+      .eq("grok_bot_addable", true)
+      .not("unavailable_in", "cs", "{grok_bot}"),
   ]);
-  return bots.length + apps.length > 0;
+  return (bots.count ?? 0) + (apps.count ?? 0) > 0;
+}
+
+/**
+ * The address of a member's own profile, or null when they have none: their
+ * cursor.directory profile isn't public, or nothing of theirs is listed.
+ */
+export async function ownProfilePath(id: string): Promise<string | null> {
+  const [creator, listed] = await Promise.all([
+    creatorById(id),
+    hasListings(id),
+  ]);
+  return creator && listed ? creatorPath(creator.handle) : null;
 }
 
 export type CreatorEntry = {
