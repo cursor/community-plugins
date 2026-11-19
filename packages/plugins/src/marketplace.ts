@@ -269,7 +269,16 @@ export async function syncMarketplacePlugins(
         }
         const { error } = await supabase
           .from("plugins")
-          .update(imported ? { ...marketplaceFields(p), ...link } : link)
+          .update(
+            imported
+              ? // The marketplace renames plugins too; the slug stays.
+                {
+                  ...marketplaceFields(p),
+                  name: p.displayName || p.name,
+                  ...link,
+                }
+              : link,
+          )
           .eq("id", known.id);
         if (error) throw new Error(error.message);
         if (imported) await replaceComponents(supabase, known.id, p);
