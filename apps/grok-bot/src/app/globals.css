@@ -452,20 +452,34 @@ img {
   text-align: center;
   margin-bottom: 40px;
 }
+/* One run of text, so on a narrow screen it wraps as a sentence (centered,
+   in even lines) rather than as columns. */
 .announce {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
+  max-width: 100%;
   font-size: 13px;
+  line-height: 22px;
   color: var(--muted);
   margin-bottom: 24px;
+  text-wrap: balance;
 }
 .announce b {
   color: var(--fg);
   font-weight: 500;
 }
+/* Too narrow for one line: the name on its own line, then the sentence. */
+@media (max-width: 480px) {
+  .announce b {
+    display: block;
+  }
+  .announce .sep {
+    display: none;
+  }
+}
 .announce .arrow {
   display: inline-flex;
+  vertical-align: middle;
+  margin-left: 2px;
   width: 22px;
   height: 22px;
   border-radius: 999px;

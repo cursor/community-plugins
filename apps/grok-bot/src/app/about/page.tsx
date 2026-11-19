@@ -71,6 +71,10 @@ export default function AboutPage() {
           An add is counted when someone presses Add to Grok Bot on this site.
           Adds made anywhere else aren’t counted.
         </p>
+        <p>
+          Apps rank the same way by installs, which include installs into Cursor
+          from cursor.directory.
+        </p>
       </section>
 
       <section id="adding">

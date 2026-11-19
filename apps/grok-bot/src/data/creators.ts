@@ -39,17 +39,16 @@ const toCreator = (row: MemberRow): Creator => ({
   xHandle: row.x_handle,
 });
 
-// `ilike` reads "_" and "%" as wildcards, and X handles use "_".
-const exactly = (value: string) => value.replace(/[\\%_]/g, "\\$&");
-
+// Any capitalisation of the handle, through the index on lower(x_handle)
+// (`grok_bot_member_by_x_handle()` in SQL).
 async function byXHandle(name: string): Promise<Creator | null> {
   const admin = await createAdminClient();
-  const { data } = await admin
-    .from("users")
+  const { data, error } = await admin
+    .rpc("grok_bot_member_by_x_handle", { p_handle: name })
     .select(MEMBER_COLUMNS)
-    .ilike("x_handle", exactly(name))
-    .eq("public", true)
     .maybeSingle();
+  // A failed read must not be cached as "no such member".
+  if (error) throw new Error(error.message);
   return data ? toCreator(data as MemberRow) : null;
 }
 
@@ -67,12 +66,13 @@ async function findCreator(written: string): Promise<Creator | null> {
   }
   if (written !== handle) return null;
   const admin = await createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("users")
     .select(MEMBER_COLUMNS)
     .eq("slug", handle)
     .eq("public", true)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return data ? toCreator(data as MemberRow) : null;
 }
 
