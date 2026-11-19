@@ -33,6 +33,9 @@ test.describe("submit", () => {
       "Listing rules",
     );
     await expect(rules.getByRole("listitem")).toHaveCount(5);
+    // They hold for apps as well as bots.
+    await expect(rules).toContainText("We don’t list bots or apps that:");
+    await expect(rules).toContainText("adult content");
     await expect(rules).toContainText("at our discretion");
   });
 
