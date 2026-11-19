@@ -10,6 +10,7 @@ const COLUMNS: [string, [href: string, label: string][]][] = [
       ["/submit", "Submit a bot"],
       ["/submit?kind=app", "Submit an app"],
       ["/my-bots", "Your submissions"],
+      ["/about", "About"],
     ],
   ],
   [

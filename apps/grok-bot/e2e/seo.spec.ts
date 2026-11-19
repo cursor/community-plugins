@@ -51,4 +51,23 @@ test.describe("seo", () => {
       /Grok Bot/,
     );
   });
+
+  test("the About page answers the common questions", async ({ page }) => {
+    await page.goto("/");
+    await page
+      .getByRole("contentinfo")
+      .getByRole("link", { name: "About" })
+      .click();
+    await expect(page).toHaveURL(/\/about$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "About the directory",
+    );
+    for (const id of ["marketplace", "listing", "ranking", "adding"])
+      await expect(page.locator(`section#${id} h2`)).toBeVisible();
+    await expect(
+      page
+        .locator("section#marketplace")
+        .getByRole("link", { name: "Marketplace" }),
+    ).toHaveAttribute("href", "https://x.ai/bot/marketplace");
+  });
 });
