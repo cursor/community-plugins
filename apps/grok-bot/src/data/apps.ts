@@ -29,6 +29,13 @@ export type DirectoryApp = {
   createdAt: string;
   mcpServers: string[];
   skills: string[];
+  /**
+   * The plugin's installs: cursor.directory's count, which "Add to Grok
+   * Bot" here adds to.
+   */
+  installs: number;
+  /** Installs in the last 30 days, for Trending. */
+  installsRecent: number;
 };
 
 /**
@@ -46,6 +53,9 @@ export type AppListItem = Pick<
   | "categories"
   | "mcpServers"
   | "skills"
+  | "createdAt"
+  | "installs"
+  | "installsRecent"
 >;
 
 const LIST_DESCRIPTION_CHARS = 200;
@@ -65,6 +75,9 @@ export function toAppListItem(app: DirectoryApp): AppListItem {
     categories: app.categories,
     mcpServers: app.mcpServers,
     skills: app.skills,
+    createdAt: app.createdAt,
+    installs: app.installs,
+    installsRecent: app.installsRecent,
   };
 }
 
@@ -104,6 +117,8 @@ type AppRow = {
   created_at: string;
   mcp_servers: string[] | null;
   skills: string[] | null;
+  installs?: number | null;
+  installs_recent?: number | null;
 };
 
 function toApp(row: AppRow): DirectoryApp {
@@ -122,23 +137,23 @@ function toApp(row: AppRow): DirectoryApp {
     createdAt: row.created_at,
     mcpServers: row.mcp_servers ?? [],
     skills: row.skills ?? [],
+    installs: row.installs ?? 0,
+    installsRecent: row.installs_recent ?? 0,
   };
 }
 
 export type AppsFirstPage = {
-  official: AppListItem[];
-  community: AppListItem[];
+  /** The first rows, in Trending order. */
+  apps: AppListItem[];
   /** How many there are in all, in the category when one was asked for. */
-  officialTotal: number;
-  communityTotal: number;
+  total: number;
   /** Every app, whatever the category. */
   allTotal: number;
 };
 
 /**
- * The first rows of the Apps list: a random pick of official and of
- * community apps with the totals, so a page doesn't load every app to show
- * a few (`grok_bot_apps_first_page()` in SQL).
+ * The first rows of the Apps list in Trending order, with the totals, so a
+ * page doesn't load every app to show a few (`grok_bot_apps_page()` in SQL).
  */
 export function firstAppsPage({
   limit = 60,
@@ -152,7 +167,6 @@ export function firstAppsPage({
   return appsFirstPage(limit, category, exclude);
 }
 
-// The pick is random, so visitors within the same minute see the same one.
 const appsFirstPage = cached("apps-first-page", ["apps"], loadAppsFirstPage);
 
 async function loadAppsFirstPage(
@@ -161,34 +175,29 @@ async function loadAppsFirstPage(
   exclude: string | null,
 ): Promise<AppsFirstPage> {
   const admin = await createAdminClient();
-  const { data, error } = await admin.rpc("grok_bot_apps_first_page", {
+  const { data, error } = await admin.rpc("grok_bot_apps_page", {
     p_limit: limit,
     p_category: category,
     p_exclude: exclude,
   });
   if (error) throw error;
   const page = (data ?? {}) as {
-    official?: AppRow[];
-    community?: AppRow[];
-    official_total?: number;
-    community_total?: number;
+    apps?: AppRow[];
+    total?: number;
     all_total?: number;
   };
-  const rows = (list: AppRow[] | undefined) =>
-    (list ?? []).map((row) => toAppListItem(toApp(row)));
   return {
-    official: rows(page.official),
-    community: rows(page.community),
-    officialTotal: Number(page.official_total ?? 0),
-    communityTotal: Number(page.community_total ?? 0),
+    apps: (page.apps ?? []).map((row) => toAppListItem(toApp(row))),
+    total: Number(page.total ?? 0),
     allTotal: Number(page.all_total ?? 0),
   };
 }
 
 /**
- * Every app: official first, then community, alphabetical within each. It's
- * several megabytes; pages use firstAppsPage and the browser fetches this
- * (through /api/apps) only to search or show more.
+ * Every app: official first, then community, alphabetical within each (the
+ * sitemap's order; the Apps list sorts its own). It's several megabytes;
+ * pages use firstAppsPage and the browser fetches this (through /api/apps)
+ * only to search, sort or show more.
  */
 export async function listApps(): Promise<DirectoryApp[]> {
   const admin = await createAdminClient();
@@ -240,7 +249,7 @@ async function loadApp(slug: string): Promise<AppDetail | null> {
   const { data } = await admin
     .from("plugins")
     .select(
-      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, active, unavailable_in, grok_bot_addable, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
+      "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, install_count, active, unavailable_in, grok_bot_addable, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -265,6 +274,7 @@ async function loadApp(slug: string): Promise<AppDetail | null> {
   if (!worksInGrokBot(components.map((c) => c.type))) return null;
   const app = toApp({
     ...data,
+    installs: data.install_count,
     categories: appCategories(data.marketplace_categories, data.app_category),
     mcp_servers: components
       .filter((c) => c.type === "mcp_server")

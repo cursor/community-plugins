@@ -6,9 +6,12 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppListItem, AppsFirstPage } from "@/data/apps";
 import { APP_CATEGORIES, appCategoryLabel } from "@/lib/app-categories";
+import { APP_SORTS, type AppSort, compareApps } from "@/lib/app-sort";
+import { formatAddCount, formatRelativeDate } from "@/lib/format";
 import { useHeld } from "@/lib/use-held";
 import { AppRow } from "./app-row";
 import { SceneBot } from "./bot-art";
+import { Segmented } from "./segmented";
 
 // Filtering (and the ?q= URL update) waits this long after the last keystroke.
 const SEARCH_DEBOUNCE_MS = 150;
@@ -34,23 +37,15 @@ function fetchEveryApp(): Promise<AppListItem[]> {
   return everyApp;
 }
 
-function shuffle<T>(list: T[]): T[] {
-  const out = [...list];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
 /**
- * The Apps list. The page arrives with the first rows only (`first`: a pick
- * of official and community apps, in `firstCategory` when the URL names
- * one), since every app is over a megabyte. That list is fetched once from
- * /api/apps, shortly after the first rows appear; search, categories and
- * "Show more" then run in the browser. Until it has arrived, the rows on the
- * page stay where they are (dimmed while an answer is pending) rather than
- * being swapped for placeholders.
+ * The Apps list: one list of official and community apps, sorted like the
+ * bots (Trending, Top, New). The page arrives with the first rows only
+ * (`first`: the top of Trending, in `firstCategory` when the URL names one),
+ * since every app is over a megabyte. That list is fetched once from
+ * /api/apps, shortly after the first rows appear; search, categories, the
+ * other sorts and "Show more" then run in the browser. Until it has arrived,
+ * the rows on the page stay where they are (dimmed while an answer is
+ * pending) rather than being swapped for placeholders.
  */
 export function AppDirectory({
   first,
@@ -65,6 +60,7 @@ export function AppDirectory({
   // is the Bots tab's then.
   const live = params.get("tab") === "apps";
   const [search, setSearch] = useState(live ? (params.get("q") ?? "") : "");
+  const [sort, setSort] = useState<AppSort>("trending");
   // An unknown category in the URL is no category, as on the server.
   const rawCategory = useHeld(params.get("category") ?? "", live);
   const urlCategory = appCategoryLabel(rawCategory) ? rawCategory : "";
@@ -117,32 +113,19 @@ export function AppDirectory({
     setParam("q", "");
   };
 
-  // Every app, once it's been asked for: the rows already on the page keep
-  // their place and the rest follow in a fresh order, official first.
+  // Every app, once it's been asked for. Sorted the way the page arrived,
+  // the rows already on it keep their place.
   const [all, setAll] = useState<AppListItem[] | null>(null);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "failed">(
     "idle",
   );
   const loading = useRef(false);
-  const firstRows = useRef(first);
-  useEffect(() => {
-    firstRows.current = first;
-  }, [first]);
   const loadAll = useCallback(async () => {
     if (loading.current) return;
     loading.current = true;
     setLoadState("loading");
     try {
-      const list = await fetchEveryApp();
-      const { official, community } = firstRows.current;
-      const here = new Set([...official, ...community].map((a) => a.slug));
-      const rest = shuffle(list.filter((a) => !here.has(a.slug)));
-      setAll([
-        ...official,
-        ...rest.filter((a) => a.marketplaceId),
-        ...community,
-        ...rest.filter((a) => !a.marketplaceId),
-      ]);
+      setAll(await fetchEveryApp());
       setLoadState("idle");
     } catch {
       loading.current = false;
@@ -176,46 +159,48 @@ export function AppDirectory({
       }),
     [all, searching],
   );
-  // Searching needs every app, and so does a category the page didn't
-  // arrive with.
+  // The page arrived with the top of Trending in one category (or none);
+  // anything else needs every app.
+  const needsAll =
+    searching || category !== firstCategory || sort !== "trending";
   useEffect(() => {
-    if (searching || category !== firstCategory) loadAll();
-  }, [searching, category, firstCategory, loadAll]);
+    if (needsAll) loadAll();
+  }, [needsAll, loadAll]);
 
   const categoryName = appCategoryLabel(category);
-  const inCategory = (a: AppListItem) =>
-    !category || a.categories.includes(category);
 
-  // With every app loaded, search and filters are computed here. Until then
-  // the page shows the rows it arrived with, which the server already
-  // picked for the URL's category.
-  let official: AppListItem[];
-  let community: AppListItem[];
-  let officialTotal: number;
-  let communityTotal: number;
-  let counts: Record<string, number> | null = null;
-  if (all) {
-    // Search results keep Fuse's relevance order; otherwise the list keeps
-    // the order it has (official first, each group shuffled per visit).
+  // With every app loaded, search, filters and sorting are computed here.
+  // Until then the page shows the rows it arrived with, which the server
+  // already picked for the URL's category.
+  const listed = useMemo(() => {
+    if (!all) return null;
     const matched = fuse ? fuse.search(query).map((r) => r.item) : all;
-    if (searching)
-      counts = Object.fromEntries(
-        APP_CATEGORIES.map((c) => [
-          c.id,
-          matched.filter((a) => a.categories.includes(c.id)).length,
-        ]),
+    const counts = fuse
+      ? Object.fromEntries(
+          APP_CATEGORIES.map((c) => [
+            c.id,
+            matched.filter((a) => a.categories.includes(c.id)).length,
+          ]),
+        )
+      : null;
+    // As with bots: an app named exactly what was typed comes first, then
+    // the chosen order.
+    const q = query.toLowerCase();
+    const order = compareApps(sort);
+    const apps = matched
+      .filter((a) => !category || a.categories.includes(category))
+      .sort(
+        (a, b) =>
+          (fuse
+            ? Number(b.name.toLowerCase() === q) -
+              Number(a.name.toLowerCase() === q)
+            : 0) || order(a, b),
       );
-    const visible = matched.filter(inCategory);
-    official = visible.filter((a) => a.marketplaceId);
-    community = visible.filter((a) => !a.marketplaceId);
-    officialTotal = official.length;
-    communityTotal = community.length;
-  } else {
-    official = first.official;
-    community = first.community;
-    officialTotal = first.officialTotal;
-    communityTotal = first.communityTotal;
-  }
+    return { apps, counts };
+  }, [all, fuse, query, category, sort]);
+  const apps = listed ? listed.apps : first.apps;
+  const total = listed ? listed.apps.length : first.total;
+  const counts = listed?.counts ?? null;
   // Once every app is here, a category with none isn't offered. The one in
   // the URL still is, so it can be turned off.
   const categories = all
@@ -227,9 +212,9 @@ export function AppDirectory({
 
   // The answer isn't here yet: a search or a category chosen before every
   // app has arrived. The rows on the page stay, dimmed, until it is.
-  const waiting = !all && (searching || category !== firstCategory);
+  const waiting = !all && needsAll;
   const failed = waiting && loadState === "failed";
-  const empty = !waiting && officialTotal + communityTotal === 0;
+  const empty = !waiting && total === 0;
 
   return (
     <>
@@ -321,31 +306,26 @@ export function AppDirectory({
           aria-busy={waiting || undefined}
           data-testid={waiting ? "apps-pending" : undefined}
         >
-          {(
-            [
-              ["Official apps", official, officialTotal, "official-apps"],
-              ["Community apps", community, communityTotal, "community-apps"],
-            ] as const
-          ).map(
-            ([title, list, total, id]) =>
-              total > 0 && (
-                <AppSection
-                  // A new search or category starts from the first page, once
-                  // its rows are here.
-                  key={waiting ? id : `${id}:${query}:${category}`}
-                  id={id}
-                  title={
-                    searching && !waiting
-                      ? `${title} matching “${query}”`
-                      : title
-                  }
-                  apps={list}
-                  total={total}
-                  loadState={all ? "idle" : loadState}
-                  onMore={loadAll}
-                />
-              ),
-          )}
+          <AppSection
+            // A new search, category or sort starts from the first page,
+            // once its rows are here.
+            key={waiting ? "apps" : `${query}:${category}:${sort}`}
+            title={
+              searching && !waiting
+                ? "Results"
+                : sort === "trending"
+                  ? "Trending apps"
+                  : sort === "installs"
+                    ? "Most installed"
+                    : "New apps"
+            }
+            apps={apps}
+            total={total}
+            sort={sort}
+            onSort={setSort}
+            loadState={all ? "idle" : loadState}
+            onMore={loadAll}
+          />
         </div>
       )}
     </>
@@ -353,18 +333,20 @@ export function AppDirectory({
 }
 
 function AppSection({
-  id,
   title,
   apps,
   total,
+  sort,
+  onSort,
   loadState,
   onMore,
 }: {
-  id: string;
   title: string;
   /** The rows there are to show so far; fewer than `total` until every app has loaded. */
   apps: AppListItem[];
   total: number;
+  sort: AppSort;
+  onSort: (sort: AppSort) => void;
   loadState: "idle" | "loading" | "failed";
   /** Fetches every app, when more are wanted than the page arrived with. */
   onMore: () => void;
@@ -373,13 +355,28 @@ function AppSection({
   const wanted = Math.min(shown, total);
   const missing = apps.length < wanted;
   return (
-    <div className="section" data-testid={id}>
+    <div className="section" data-testid="apps-list">
       <div className="section-head">
-        <h2>{title}</h2>
-        <span className="muted section-count">{total}</span>
+        <h2>
+          {title} <span className="muted section-count">{total}</span>
+        </h2>
+        <Segmented
+          label="Sort apps"
+          value={sort}
+          onChange={onSort}
+          options={APP_SORTS.map(([id, label]) => ({ id, label }))}
+        />
       </div>
       {apps.slice(0, shown).map((app) => (
-        <AppRow key={app.slug} app={app} />
+        <AppRow
+          key={app.slug}
+          app={app}
+          metric={
+            sort === "recent"
+              ? formatRelativeDate(app.createdAt)
+              : formatAddCount(app.installs)
+          }
+        />
       ))}
       {missing && loadState === "failed" ? (
         <button

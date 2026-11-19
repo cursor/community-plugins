@@ -8,6 +8,15 @@ export function formatAdds(n: number): string | null {
   return `${formatCount(n)} adds`;
 }
 
+/**
+ * "1.2k installs" for an app, or null when there are too few to show. An
+ * app's count is its plugin's: installs into Cursor and adds to Grok Bot.
+ */
+export function formatInstalls(n: number): string | null {
+  if (n < MIN_SHOWN_ADDS) return null;
+  return `${formatCount(n)} installs`;
+}
+
 /** The bare add count for a list row, or "" when there are too few. */
 export function formatAddCount(n: number): string {
   return n < MIN_SHOWN_ADDS ? "" : formatCount(n);
