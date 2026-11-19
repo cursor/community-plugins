@@ -74,6 +74,8 @@ export const FLAG_CATEGORIES = [
   "prompt_injection",
   "spam",
   "nsfw",
+  // Made to get around an AI model's safeguards (jailbreaks).
+  "harmful",
   "impersonation",
   // A second listing of something the directory already has.
   "duplicate",

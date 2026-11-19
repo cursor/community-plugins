@@ -66,6 +66,9 @@ export default function AboutPage() {
           </li>
           <li>track or monitor other people without their knowledge</li>
           <li>mislead people about what they do or who made them</li>
+          <li>
+            are made to get around an AI model’s safety rules (jailbreaks)
+          </li>
           <li>are spam, adult content, or built to cause harm</li>
         </ul>
         <p>
