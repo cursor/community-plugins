@@ -72,8 +72,9 @@ export default async function HomePage({ searchParams }: Props) {
             rel="noopener noreferrer"
             className="announce"
           >
-            <b>Community Directory</b> · Official picks are in the Marketplace{" "}
-            <span className="arrow">↗</span>
+            <b>Community Directory</b>
+            <span className="sep"> · </span>Official picks are in the
+            Marketplace <span className="arrow">↗</span>
           </a>
           <h1 className="hero-title" aria-label="Find a bot for every job">
             <span>

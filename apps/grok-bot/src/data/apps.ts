@@ -246,13 +246,15 @@ export const getApp = cache(cached("app", ["apps"], loadApp));
 
 async function loadApp(slug: string): Promise<AppDetail | null> {
   const admin = await createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("plugins")
     .select(
       "id, slug, name, description, logo, author_name, author_url, homepage, repository, marketplace_plugin_id, marketplace_categories, app_category, created_at, install_count, active, unavailable_in, grok_bot_addable, owner_id, plugin_components(type, name, slug, description, content, metadata, sort_order)",
     )
     .eq("slug", slug)
     .maybeSingle();
+  // A failed read must not be cached as "no such app".
+  if (error) throw new Error(error.message);
   // Apps Grok Bot can't add aren't in the directory at all.
   if (
     !data?.active ||

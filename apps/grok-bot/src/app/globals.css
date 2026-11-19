@@ -452,20 +452,34 @@ img {
   text-align: center;
   margin-bottom: 40px;
 }
+/* One run of text, so on a narrow screen it wraps as a sentence (centered,
+   in even lines) rather than as columns. */
 .announce {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-block;
+  max-width: 100%;
   font-size: 13px;
+  line-height: 22px;
   color: var(--muted);
   margin-bottom: 24px;
+  text-wrap: balance;
 }
 .announce b {
   color: var(--fg);
   font-weight: 500;
 }
+/* Too narrow for one line: the name on its own line, then the sentence. */
+@media (max-width: 480px) {
+  .announce b {
+    display: block;
+  }
+  .announce .sep {
+    display: none;
+  }
+}
 .announce .arrow {
   display: inline-flex;
+  vertical-align: middle;
+  margin-left: 2px;
   width: 22px;
   height: 22px;
   border-radius: 999px;
@@ -678,7 +692,10 @@ img {
   vertical-align: top;
 }
 @media (max-width: 640px) {
-  .cats {
+  /* A row that scrolls to the screen's edges but starts in line with the
+     page. (Written as `fieldset.chips.cats` to outrank the reset on
+     fieldset.chips further down, which was zeroing this padding.) */
+  fieldset.chips.cats {
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -686,6 +703,7 @@ img {
     margin-left: -20px;
     margin-right: -20px;
     padding: 0 20px;
+    scroll-padding-inline: 20px;
     scrollbar-width: none;
   }
   .cats .chip {

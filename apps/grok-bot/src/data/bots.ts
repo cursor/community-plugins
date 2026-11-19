@@ -4,7 +4,7 @@ import { cache } from "react";
 import slugify from "slugify";
 import { type Body, bodyForShape } from "@/lib/avatar";
 import { creatorHandle } from "@/lib/creator-handle";
-import { cached } from "@/lib/data-cache";
+import { CACHE_ON, cached } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { allRows, allRowsIn } from "@/utils/supabase/all-rows";
 
@@ -212,8 +212,51 @@ async function loadListedBots(): Promise<DirectoryBot[]> {
   return toDirectoryBots(rows, recent);
 }
 
+// A cache entry holds 2 MB and the list grows by the day, so it's kept in
+// pieces of this many bots.
+const CHUNK = 300;
+
+// Pieces refreshed at the same moment are cut from one read. It's shared
+// only while it's under way: a finished read is never reused, so a change
+// that expires the cache is always read afresh.
+let reading: Promise<DirectoryBot[]> | null = null;
+function readListedBots(): Promise<DirectoryBot[]> {
+  reading ??= loadListedBots().finally(() => {
+    reading = null;
+  });
+  return reading;
+}
+
+const listedBotsChunk = cached(
+  "listed-bots-chunk",
+  ["bots"],
+  async (index: number) => {
+    const all = await readListedBots();
+    return {
+      total: all.length,
+      // The review is for admins; public lists don't carry it.
+      bots: all
+        .slice(index * CHUNK, (index + 1) * CHUNK)
+        .map((bot) => ({ ...bot, aiReview: null })),
+    };
+  },
+);
+
 /** Every listed bot, with its adds in the last 30 days. */
-export const listListedBots = cached("listed-bots", ["bots"], loadListedBots);
+export async function listListedBots(): Promise<DirectoryBot[]> {
+  if (!CACHE_ON) return loadListedBots();
+  const first = await listedBotsChunk(0);
+  const rest = await Promise.all(
+    Array.from({ length: Math.ceil(first.total / CHUNK) - 1 }, (_, i) =>
+      listedBotsChunk(i + 1),
+    ),
+  );
+  // Pieces refreshed a moment apart can overlap by a bot.
+  const seen = new Set<string>();
+  return [first, ...rest]
+    .flatMap((piece) => piece.bots)
+    .filter((bot) => !seen.has(bot.id) && seen.add(bot.id));
+}
 
 const RELATED = 3;
 
@@ -245,12 +288,14 @@ export async function listRelatedBots(
 
 async function loadListedBot(slug: string): Promise<DirectoryBot | null> {
   const admin = await createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("grok_bots")
     .select(BOT_COLUMNS)
     .eq("slug", slug)
     .eq("status", "listed")
     .maybeSingle();
+  // A failed read must not be cached as "no such bot".
+  if (error) throw new Error(error.message);
   if (!data) return null;
   const [bot] = await toDirectoryBots([data as BotRow]);
   return bot;

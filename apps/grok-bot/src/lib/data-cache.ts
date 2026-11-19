@@ -15,6 +15,9 @@ const SECONDS = Number(
     (process.env.NODE_ENV === "production" ? 60 : 0),
 );
 
+/** Whether results are being reused at all. */
+export const CACHE_ON = SECONDS > 0;
+
 export type ListingKind = "bots" | "apps";
 const TAG: Record<ListingKind, string> = {
   bots: "grok-bot-listings",
@@ -30,7 +33,7 @@ export function cached<Args extends unknown[], Result>(
   kinds: ListingKind[],
   load: (...args: Args) => Promise<Result>,
 ): (...args: Args) => Promise<Result> {
-  if (!(SECONDS > 0)) return load;
+  if (!CACHE_ON) return load;
   return unstable_cache(load, [name], {
     revalidate: SECONDS,
     tags: kinds.map((kind) => TAG[kind]),
