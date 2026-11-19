@@ -1269,6 +1269,13 @@ img {
   font-weight: 500;
   letter-spacing: 0;
 }
+/* The "Official" mark on a list row: the app page's badge, smaller. */
+.app-badge.row-badge {
+  height: 18px;
+  margin-left: 8px;
+  padding: 0 7px;
+  font-size: 11px;
+}
 .detail .app-logo {
   margin-bottom: 4px;
 }

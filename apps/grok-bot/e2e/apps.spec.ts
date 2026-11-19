@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { APP_FIXTURES, seedFixtures, signIn } from "./fixtures";
+import { APP_FIXTURES, db, seedFixtures, signIn } from "./fixtures";
 
 test.describe("apps", () => {
   test.beforeAll(seedFixtures);
 
-  test("the Apps tab lists official apps before community apps", async ({
+  test("the Apps tab lists official and community apps in one list", async ({
     page,
   }) => {
     await page.goto("/?tab=apps");
@@ -13,18 +13,20 @@ test.describe("apps", () => {
       "true",
     );
     await page.getByRole("textbox", { name: "Search apps" }).fill("Zephyr App");
-    const official = page.getByTestId("official-apps");
-    const community = page.getByTestId("community-apps");
-    await expect(
-      official.getByTestId("app-row").filter({
-        hasText: APP_FIXTURES.official.name,
-      }),
-    ).toBeVisible();
-    await expect(
-      community.getByTestId("app-row").filter({
-        hasText: APP_FIXTURES.community.name,
-      }),
-    ).toBeVisible();
+    const list = page.getByTestId("apps-list");
+    const official = list
+      .getByTestId("app-row")
+      .filter({ hasText: APP_FIXTURES.official.name });
+    const community = list
+      .getByTestId("app-row")
+      .filter({ hasText: APP_FIXTURES.community.name });
+    await expect(official).toBeVisible();
+    await expect(community).toBeVisible();
+    // Only the official one is marked.
+    await expect(official.getByTestId("row-official-badge")).toHaveText(
+      "Official",
+    );
+    await expect(community.getByTestId("row-official-badge")).toHaveCount(0);
     // Not listed yet, Cursor-only, or marked as not working in Grok Bot.
     for (const f of [
       APP_FIXTURES.pending,
@@ -35,6 +37,73 @@ test.describe("apps", () => {
         page.getByTestId("app-row").filter({ hasText: f.name }),
       ).toHaveCount(0);
     }
+  });
+
+  test("apps sort by Trending, Top and New, by their installs", async ({
+    page,
+  }) => {
+    // Far more installs than anything seeded; the fixture is new, so they
+    // all count as recent.
+    const { error } = await db()
+      .from("plugins")
+      .update({ install_count: 987_654 })
+      .eq("slug", APP_FIXTURES.community.slug);
+    if (error) throw error;
+
+    await page.goto("/?tab=apps");
+    const list = page.getByTestId("apps-list");
+    await expect(list.getByRole("heading", { level: 2 })).toContainText(
+      "Trending apps",
+    );
+    // It leads Trending and shows its count.
+    const first = list.getByTestId("app-row").first();
+    await expect(first).toContainText(APP_FIXTURES.community.name);
+    await expect(first.locator(".metric")).toHaveText("988k");
+
+    const sorts = list.getByRole("tablist", { name: "Sort apps" });
+    await sorts.getByRole("tab", { name: "Top" }).click();
+    await expect(list.getByRole("heading", { level: 2 })).toContainText(
+      "Most installed",
+    );
+    await expect(list.getByTestId("app-row").first()).toContainText(
+      APP_FIXTURES.community.name,
+    );
+
+    // New goes by listing date: the fixtures were seeded a moment ago.
+    await sorts.getByRole("tab", { name: "New" }).click();
+    await expect(list.getByRole("heading", { level: 2 })).toContainText(
+      "New apps",
+    );
+    await expect(list.getByTestId("app-row").first()).toContainText(
+      /Zephyr App/,
+    );
+    await expect(
+      list.getByTestId("app-row").first().locator(".metric"),
+    ).toHaveText("today");
+    await seedFixtures();
+  });
+
+  test("adding an app counts as an install of the plugin", async ({
+    page,
+    context,
+  }) => {
+    // The Add link leaves for x.ai in a new tab; the count is what matters.
+    await context.route("https://x.ai/**", (route) => route.abort());
+    const installs = async () => {
+      const { data } = await db()
+        .from("plugins")
+        .select("install_count")
+        .eq("slug", APP_FIXTURES.official.slug)
+        .single();
+      return data?.install_count ?? 0;
+    };
+    const before = await installs();
+    await page.goto(`/apps/${APP_FIXTURES.official.slug}`);
+    const popup = page.waitForEvent("popup");
+    // The page's own Add, not the ones on the related rows below it.
+    await page.locator(".detail-actions").getByTestId("app-add").click();
+    await (await popup).close();
+    await expect.poll(installs).toBe(before + 1);
   });
 
   test("the Apps tab arrives with the first rows and fetches the rest once, behind them", async ({
@@ -50,11 +119,11 @@ test.describe("apps", () => {
     await expect(
       page.getByRole("button", { name: "Productivity" }),
     ).toHaveAttribute("aria-pressed", "true");
-    const official = page.getByTestId("official-apps");
+    const list = page.getByTestId("apps-list");
     const total = Number(
-      (await official.locator(".section-count").textContent()) ?? "0",
+      (await list.locator(".section-count").textContent()) ?? "0",
     );
-    const rows = official.getByTestId("app-row");
+    const rows = list.getByTestId("app-row");
     await expect(rows).toHaveCount(Math.min(total, 60));
     await expect.poll(() => fetches.length).toBe(1);
 
@@ -75,14 +144,13 @@ test.describe("apps", () => {
     expect(pages).toHaveLength(0);
 
     // Show more comes from the same list. The seeded marketplace has more
-    // than a page of official apps; a bare database doesn't, and has no
-    // button.
+    // than a page of apps; a bare database doesn't, and has no button.
     await page.goto("/?tab=apps");
     const all = Number(
-      (await official.locator(".section-count").textContent()) ?? "0",
+      (await list.locator(".section-count").textContent()) ?? "0",
     );
-    test.skip(all <= 60, "needs more than one page of official apps");
-    await official.getByRole("button", { name: /^Show more/ }).click();
+    test.skip(all <= 60, "needs more than one page of apps");
+    await list.getByRole("button", { name: /^Show more/ }).click();
     await expect(rows).toHaveCount(Math.min(all, 120));
     expect(fetches).toHaveLength(2);
   });

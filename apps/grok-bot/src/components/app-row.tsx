@@ -5,9 +5,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AppListItem } from "@/data/apps";
 import { appContents } from "@/lib/app-categories";
+import { AppAddLink } from "./app-add-link";
 import { AppLogo } from "./app-logo";
 
-export function AppRow({ app }: { app: AppListItem }) {
+export function AppRow({
+  app,
+  metric,
+}: {
+  app: AppListItem;
+  /** The list's number for this row (adds, or when it was listed). */
+  metric?: string;
+}) {
   const router = useRouter();
   const href = `/apps/${app.slug}`;
   const contents = appContents(app.mcpServers.length, app.skills.length);
@@ -34,23 +42,29 @@ export function AppRow({ app }: { app: AppListItem }) {
             >
               {app.name}
             </Link>
+            {app.marketplaceId && (
+              <span
+                className="app-badge row-badge"
+                data-testid="row-official-badge"
+              >
+                Official
+              </span>
+            )}
           </div>
           <p className="row-desc">{app.description}</p>
         </div>
       </div>
       <div className="row-side">
         {contents && <span className="app-contents">{contents}</span>}
+        {metric && <span className="metric">{metric}</span>}
         {app.marketplaceId ? (
-          <a
+          <AppAddLink
+            slug={app.slug}
             href={grokBotPluginUrl(app.marketplaceId)}
-            target="_blank"
-            rel="noopener noreferrer"
             className="btn btn-gray btn-sm"
-            data-testid="app-add"
-            onClick={(e) => e.stopPropagation()}
           >
             Add
-          </a>
+          </AppAddLink>
         ) : (
           <Link
             href={href}

@@ -3,6 +3,7 @@ import { type AddPart, grokBotAddUrl } from "@directories/plugins/grok-bot-add";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AppAddLink } from "@/components/app-add-link";
 import { AppLogo } from "@/components/app-logo";
 import { AppRow } from "@/components/app-row";
 import { firstAppsPage, getApp } from "@/data/apps";
@@ -12,7 +13,7 @@ import {
   creditedPublisher,
   primaryAppCategory,
 } from "@/lib/app-categories";
-import { formatRelativeDate } from "@/lib/format";
+import { formatInstalls, formatRelativeDate } from "@/lib/format";
 import { siteUrl } from "@/lib/og";
 
 export const dynamic = "force-dynamic";
@@ -52,12 +53,10 @@ export default async function AppPage({ params }: Props) {
   if (!app) notFound();
   const category = primaryAppCategory(app.categories);
   const publisher = creditedPublisher(app);
-  // Three others in its category: official ones first, a fresh pick each
-  // visit.
-  const more = category
-    ? await firstAppsPage({ limit: 3, category, exclude: app.id })
-    : null;
-  const related = more ? [...more.official, ...more.community].slice(0, 3) : [];
+  // Three others in its category, the most added first.
+  const related = category
+    ? (await firstAppsPage({ limit: 3, category, exclude: app.id })).apps
+    : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
   // One message adding every server and skill; null unless all of them can
   // be added (a listed community app always can: see grok_bot_addable).
@@ -127,30 +126,26 @@ export default async function AppPage({ params }: Props) {
       <p className="detail-desc">{app.description}</p>
       <div className="detail-actions">
         {app.marketplaceId ? (
-          <a
+          <AppAddLink
+            slug={app.slug}
             href={grokBotPluginUrl(app.marketplaceId)}
-            target="_blank"
-            rel="noopener noreferrer"
             className="btn btn-lg has-tooltip"
-            data-tooltip={OPENS_GROK_BOT}
-            data-testid="app-add"
+            tooltip={OPENS_GROK_BOT}
           >
             Add to Grok Bot
             <span className="sr-only"> ({OPENS_GROK_BOT})</span>
-          </a>
+          </AppAddLink>
         ) : (
           addAll && (
-            <a
+            <AppAddLink
+              slug={app.slug}
               href={addAll}
-              target="_blank"
-              rel="noopener noreferrer"
               className="btn btn-lg has-tooltip"
-              data-tooltip={OPENS_GROK_BOT}
-              data-testid="app-add"
+              tooltip={OPENS_GROK_BOT}
             >
               Add to Grok Bot
               <span className="sr-only"> ({OPENS_GROK_BOT})</span>
-            </a>
+            </AppAddLink>
           )
         )}
         {app.repository && (
@@ -172,6 +167,11 @@ export default async function AppPage({ params }: Props) {
           >
             Website ↗
           </a>
+        )}
+        {formatInstalls(app.installs) && (
+          <span className="imports" data-testid="install-count">
+            {formatInstalls(app.installs)}
+          </span>
         )}
       </div>
 

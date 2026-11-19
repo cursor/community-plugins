@@ -91,8 +91,7 @@ function BotList({ bots }: { bots: Promise<DirectoryBot[]> }) {
   return <Directory bots={use(bots)} />;
 }
 
-// Apps aren't ranked, so the pick changes every minute (official apps still
-// come first). The database picks it, so hydration sees the same order.
+// The top of Trending; the browser fetches the rest when it's asked for.
 function AppList({
   apps,
   category,
