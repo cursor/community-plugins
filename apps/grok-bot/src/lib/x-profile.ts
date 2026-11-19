@@ -1,5 +1,6 @@
 import "server-only";
 import type { User } from "@supabase/supabase-js";
+import { expireListings } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 const X_HANDLE = /^[A-Za-z0-9_]{1,15}$/;
@@ -54,4 +55,8 @@ export async function saveXProfile(user: User) {
     .eq("id", user.id)
     .is("social_x_link", null);
   if (error) console.error("saveXProfile", error.message);
+  // Their profile now answers at /u/<handle>. Someone may have looked there
+  // a moment ago and been told (and the site remembered) that nobody was:
+  // a member's first X sign-in led straight to "this page doesn't exist".
+  expireListings("profiles");
 }

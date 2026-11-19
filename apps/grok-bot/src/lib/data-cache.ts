@@ -18,10 +18,12 @@ const SECONDS = Number(
 /** Whether results are being reused at all. */
 export const CACHE_ON = SECONDS > 0;
 
-export type ListingKind = "bots" | "apps";
+export type ListingKind = "bots" | "apps" | "profiles";
 const TAG: Record<ListingKind, string> = {
   bots: "grok-bot-listings",
   apps: "grok-app-listings",
+  // Who a profile address belongs to (and that it belongs to nobody).
+  profiles: "grok-profiles",
 };
 
 /**
@@ -41,8 +43,9 @@ export function cached<Args extends unknown[], Result>(
 }
 
 /**
- * Drops what's cached about bots or apps, so a listing that was just
- * approved, removed or edited shows (or stops showing) at once.
+ * Drops what's cached about bots, apps or profiles, so a listing that was
+ * just approved, removed or edited, or a profile whose address just changed,
+ * shows (or stops showing) at once.
  */
 export function expireListings(kind: ListingKind) {
   try {

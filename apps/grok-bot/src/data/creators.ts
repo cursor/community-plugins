@@ -104,7 +104,7 @@ export type CreatorProfile = {
 export const getCreatorProfile = cache(
   cached(
     "creator-profile",
-    ["bots", "apps"],
+    ["bots", "apps", "profiles"],
     async (handle: string): Promise<CreatorProfile | null> => {
       const creator = await findCreator(handle);
       if (!creator) return null;
