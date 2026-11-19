@@ -320,6 +320,19 @@ export async function fetchGitHubRepoMeta(
   }
 }
 
+const DISPLAY_NAME_MAX = 80;
+
+/**
+ * A manifest's name for people. Its `name` is an id ("herdr-mcp");
+ * `displayName`, when it has one, is what the listing should be called
+ * ("Herdr"), as on the Cursor Marketplace.
+ */
+function displayNameOf(manifest: Record<string, unknown>): string | null {
+  if (typeof manifest.displayName !== "string") return null;
+  const title = manifest.displayName.trim();
+  return title && title.length <= DISPLAY_NAME_MAX ? title : null;
+}
+
 export async function parseGitHubPlugin(
   url: string,
   options: {
@@ -403,6 +416,8 @@ export async function parseGitHubPlugin(
       try {
         const sub = JSON.parse(content);
         if (!manifest.name && sub.name) manifest.name = sub.name;
+        if (!manifest.displayName && sub.displayName)
+          manifest.displayName = sub.displayName;
         if (!manifest.description && sub.description)
           manifest.description = sub.description;
         if (!manifest.version && sub.version) manifest.version = sub.version;
@@ -641,7 +656,7 @@ export async function parseGitHubPlugin(
   // The repo's own description, website, topics and owner avatar fill in
   // whatever the plugin manifest leaves out.
   return {
-    name: (manifest.name as string) || repo,
+    name: displayNameOf(manifest) || (manifest.name as string) || repo,
     description:
       (manifest.description as string) ||
       repoMeta?.description ||
