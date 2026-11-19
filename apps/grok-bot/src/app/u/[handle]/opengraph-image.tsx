@@ -3,6 +3,7 @@ import { colorFor, initials } from "@/components/member-avatar";
 import { getCreatorProfile } from "@/data/creators";
 import { listingCounts } from "@/lib/creator-handle";
 import { botFaceUri, dataUri, OG_SIZE } from "@/lib/og";
+import { sharpXPhoto } from "@/lib/x-photo";
 
 export const alt = "A member's profile on Grok Bot Directory";
 export const size = OG_SIZE;
@@ -11,10 +12,6 @@ export const contentType = "image/png";
 const clip = (text: string, max: number) =>
   text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 
-/** X serves profile photos at 48px by default; ask for the 400px one. */
-const larger = (src: string) =>
-  src.replace(/_(normal|bigger|mini)(\.[a-z]+)$/i, "_400x400$2");
-
 /**
  * The creator's photo as a data URI, or null: it lives on another host, so
  * it's fetched with a short wait and left out if that doesn't work.
@@ -22,7 +19,9 @@ const larger = (src: string) =>
 async function photo(src: string | null): Promise<string | null> {
   if (!src?.startsWith("https://")) return null;
   try {
-    const res = await fetch(larger(src), { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(sharpXPhoto(src), {
+      signal: AbortSignal.timeout(3000),
+    });
     const type = res.headers.get("content-type") ?? "";
     if (!res.ok || !/^image\/(png|jpeg|gif)/.test(type)) return null;
     const bytes = Buffer.from(await res.arrayBuffer());

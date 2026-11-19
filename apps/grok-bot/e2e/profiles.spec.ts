@@ -179,6 +179,38 @@ test.describe("profiles", () => {
     ).toHaveAttribute("href", "/u/Zephyr_Dev");
   });
 
+  test("a photo from X is shown from its sharp version", async ({ page }) => {
+    // X sign-in saves the 48px thumbnail; a profile shows it at 72px.
+    const me = await devUserId();
+    const { data: before } = await db()
+      .from("users")
+      .select("image")
+      .eq("id", me)
+      .single();
+    await db()
+      .from("users")
+      .update({
+        x_handle: "Zephyr_Dev",
+        image: "https://pbs.twimg.com/profile_images/1/photo_normal.jpg",
+      })
+      .eq("id", me);
+    try {
+      await page.goto("/u/Zephyr_Dev");
+      const photo = page
+        .getByTestId("creator-profile")
+        .locator(".avatar img")
+        .first();
+      const src = decodeURIComponent((await photo.getAttribute("src")) ?? "");
+      expect(src).toContain("/profile_images/1/photo_400x400.jpg");
+      expect(src).not.toContain("_normal");
+    } finally {
+      await db()
+        .from("users")
+        .update({ image: before?.image ?? null })
+        .eq("id", me);
+    }
+  });
+
   test("an X handle outranks a slug that spells the same", async ({ page }) => {
     // One member's slug is "e2esame"; the dev user is @E2Esame on X.
     const same = await fixtureMember("e2e-same@grok-bot.local", "e2esame");
