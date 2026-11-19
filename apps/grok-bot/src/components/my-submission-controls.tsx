@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { creditMyBots, removeMyBot } from "@/actions/my-submissions";
+import {
+  creditMyBots,
+  refreshMyBot,
+  removeMyBot,
+} from "@/actions/my-submissions";
+import type { RefreshOutcome } from "@/lib/refresh-bot";
 
 /**
  * "Remove" on one of the member's own bots, asked twice: it comes off the
@@ -12,11 +17,14 @@ export function RemoveBot({
   botId,
   name,
   pending,
+  marketplace = false,
 }: {
   botId: string;
   name: string;
   /** Still in review: this withdraws it instead. */
   pending: boolean;
+  /** Also on the official marketplace, which this doesn't touch. */
+  marketplace?: boolean;
 }) {
   const router = useRouter();
   const [asking, setAsking] = useState(false);
@@ -41,7 +49,9 @@ export function RemoveBot({
       <span>
         {pending
           ? `Withdraw ${name} from review?`
-          : `Remove ${name} from the directory?`}
+          : marketplace
+            ? `Remove ${name} from this directory? It stays on the official Marketplace.`
+            : `Remove ${name} from the directory?`}
       </span>
       <button
         type="button"
@@ -67,6 +77,58 @@ export function RemoveBot({
       </button>
       {failed && <span role="alert">That didn’t work. Try again.</span>}
     </span>
+  );
+}
+
+// What the member is told after a refresh. "held" and "unshared" change
+// where the bot stands, so the page is reloaded to show it.
+const REFRESHED: Record<RefreshOutcome, string> = {
+  unchanged: "Already up to date.",
+  updated: "Updated from x.ai.",
+  held: "Your changes need a person to review them. The bot is back in review until then.",
+  unshared:
+    "This bot isn’t shared publicly on x.ai any more. Share it again, or remove it here.",
+  unavailable: "Couldn’t check right now. Try again in a moment.",
+  not_listed: "This bot isn’t listed any more.",
+};
+
+/**
+ * "Refresh" on one of the member's own listed bots: brings the listing up
+ * to date with the bot's name, description and avatar on x.ai.
+ */
+export function RefreshBot({ botId }: { botId: string }) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const [note, setNote] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-gray btn-sm"
+        data-testid="refresh-bot"
+        title="Update this listing from the bot on x.ai"
+        disabled={busy}
+        onClick={() =>
+          start(async () => {
+            setNote(null);
+            const result = await refreshMyBot(botId);
+            setNote(
+              result.ok
+                ? REFRESHED[result.outcome]
+                : "That didn’t work. Try again.",
+            );
+            if (result.ok && result.outcome !== "unchanged") router.refresh();
+          })
+        }
+      >
+        {busy ? "Refreshing…" : "Refresh"}
+      </button>
+      {note && (
+        <span className="sub-result" role="status" data-testid="refresh-result">
+          {note}
+        </span>
+      )}
+    </>
   );
 }
 

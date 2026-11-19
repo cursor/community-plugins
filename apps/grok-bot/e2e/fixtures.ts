@@ -376,7 +376,47 @@ export async function seedFixtures() {
       },
     ]);
   if (error) throw error;
+  await resetCredit(owner);
   await seedApps(owner);
+}
+
+/**
+ * Puts the dev user's credit choice back to the default (the name on each
+ * share card). The choice is read from the moderation log, which is
+ * append-only, so one test choosing "my profile" would otherwise hold for
+ * every spec after it.
+ */
+async function resetCredit(owner: string) {
+  const reason = "Credit changed by its owner";
+  const { data: last } = await db()
+    .from("grok_bot_moderation_events")
+    .select("after")
+    .eq("actor_id", owner)
+    .eq("action", "edit")
+    .eq("reason", reason)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!last || (last.after as { creator_name?: string | null }).creator_name)
+    return;
+  const { data: bot } = await db()
+    .from("grok_bots")
+    .select("id, slug")
+    .eq("slug", FIXTURES.alpha.slug)
+    .single();
+  const { error } = await db()
+    .from("grok_bot_moderation_events")
+    .insert({
+      bot_id: bot?.id,
+      bot_slug: bot?.slug,
+      action: "edit",
+      actor_id: owner,
+      source: "web",
+      reason,
+      before: { creator_name: null },
+      after: { creator_name: "Local Dev" },
+    });
+  if (error) throw error;
 }
 
 const pick = (f: { slug: string; name: string; description: string }) => ({

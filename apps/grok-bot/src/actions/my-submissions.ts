@@ -6,6 +6,7 @@ import { getViewer } from "@/lib/auth";
 import { CREDIT_CHANGED, cardAuthor } from "@/lib/credit";
 import { expireListings } from "@/lib/data-cache";
 import { getPublicTemplate } from "@/lib/grok-bot-api";
+import { type RefreshOutcome, refreshBot } from "@/lib/refresh-bot";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 // What a member can do to their own submissions without an admin: take a bot
@@ -73,6 +74,32 @@ export async function removeMyBot(botId: string): Promise<MineResult> {
   revalidatePath("/my-bots");
   revalidatePath(`/bots/${before.slug}`);
   return { ok: true, changed: 1 };
+}
+
+export type RefreshResult =
+  | { ok: true; outcome: RefreshOutcome }
+  | { ok: false; error: "signed_out" | "invalid" | "not_found" };
+
+/**
+ * Brings one of the member's own listed bots up to date with its card on
+ * x.ai (name, description, avatar). See refreshBot for what each outcome
+ * means; a changed card is reviewed before it's shown.
+ */
+export async function refreshMyBot(botId: string): Promise<RefreshResult> {
+  const viewer = await getViewer();
+  if (!viewer) return { ok: false, error: "signed_out" };
+  if (!z.string().uuid().safeParse(botId).success)
+    return { ok: false, error: "invalid" };
+  const admin = await createAdminClient();
+  const { data: own } = await admin
+    .from("grok_bots")
+    .select("id")
+    .eq("id", botId)
+    .eq("owner_id", viewer.id)
+    .eq("status", "listed")
+    .maybeSingle();
+  if (!own) return { ok: false, error: "not_found" };
+  return { ok: true, outcome: await refreshBot(botId, { id: viewer.id }) };
 }
 
 type OwnBot = {

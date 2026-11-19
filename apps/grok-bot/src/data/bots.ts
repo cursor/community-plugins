@@ -60,6 +60,8 @@ export type DirectoryBot = {
      */
     fromCard: boolean;
   };
+  /** Imported from the official marketplace, where it also stays listed. */
+  fromMarketplace: boolean;
   /**
    * Its owner took it out of the directory themselves (set only by
    * listBotsByOwner; an admin's unlisting isn't theirs to undo).
@@ -80,6 +82,7 @@ type BotRow = {
   category: string;
   status: BotStatus;
   review_note: string | null;
+  source: string;
   owner_id: string | null;
   creator_name: string | null;
   creator_image: string | null;
@@ -92,7 +95,7 @@ type BotRow = {
 };
 
 const BOT_COLUMNS =
-  "id, slug, share_id, name, description, avatar_shape, avatar_color, category, status, review_note, owner_id, creator_name, creator_image, creator_x_handle, install_count, submitted_at, reviewed_at, ai_review_status, ai_review";
+  "id, slug, share_id, name, description, avatar_shape, avatar_color, category, status, review_note, source, owner_id, creator_name, creator_image, creator_x_handle, install_count, submitted_at, reviewed_at, ai_review_status, ai_review";
 
 type Owner = {
   id: string;
@@ -178,6 +181,7 @@ async function toDirectoryBots(
               profile: null,
               fromCard: false,
             },
+      fromMarketplace: row.source === "marketplace",
       removedByOwner: false,
       submitter: owner?.name ?? null,
     };
