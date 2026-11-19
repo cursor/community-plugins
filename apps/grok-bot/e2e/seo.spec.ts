@@ -62,7 +62,7 @@ test.describe("seo", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "About the directory",
     );
-    for (const id of ["marketplace", "listing", "ranking", "adding"])
+    for (const id of ["marketplace", "listing", "rules", "ranking", "adding"])
       await expect(page.locator(`section#${id} h2`)).toBeVisible();
     await expect(
       page

@@ -21,6 +21,21 @@ test.describe("submit", () => {
     await expect(page.getByTestId("submit-preview")).toHaveCount(0);
   });
 
+  test("the bot form links to the listing rules", async ({ page }) => {
+    await signIn(page, "/submit");
+    await page
+      .getByTestId("submit-rules")
+      .getByRole("link", { name: "listing rules" })
+      .click();
+    await expect(page).toHaveURL(/\/about#rules$/);
+    const rules = page.getByTestId("listing-rules");
+    await expect(rules.getByRole("heading", { level: 2 })).toHaveText(
+      "Listing rules",
+    );
+    await expect(rules.getByRole("listitem")).toHaveCount(5);
+    await expect(rules).toContainText("at our discretion");
+  });
+
   test("copies the share prompt", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await signIn(page, "/submit");
