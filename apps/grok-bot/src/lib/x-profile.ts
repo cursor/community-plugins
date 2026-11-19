@@ -12,12 +12,22 @@ export function xHandleOf(user: User): string | null {
   return X_HANDLE.test(handle) ? handle : null;
 }
 
+/** The profile photo from a user's X sign-in identity, if X sent one. */
+export function xPhotoOf(user: User): string | null {
+  const identity = user.identities?.find((i) => i.provider === "x");
+  const data = identity?.identity_data ?? {};
+  const photo = String(data.avatar_url ?? data.picture ?? "");
+  return photo.startsWith("https://pbs.twimg.com/") ? photo : null;
+}
+
 /**
  * After an X sign-in, records what X said about the member:
  *
  * - `x_handle`, the handle itself. X checked it, so it is the address of
  *   their profile (/u/handle). It follows them if they rename
  *   on X, and a handle someone else held before is taken from that account.
+ * - `image`, their X photo. It replaces a photo from an earlier Google or
+ *   GitHub sign-in, so a profile here looks like the member does on X.
  * - `social_x_link`, the profile link cursor.directory's form edits, when it
  *   is empty. A link the member set is never replaced.
  */
@@ -32,9 +42,10 @@ export async function saveXProfile(user: User) {
     .ilike("x_handle", handle.replace(/_/g, "\\_"))
     .neq("id", user.id);
   if (freeError) console.error("saveXProfile", freeError.message);
+  const photo = xPhotoOf(user);
   const { error: handleError } = await admin
     .from("users")
-    .update({ x_handle: handle })
+    .update({ x_handle: handle, ...(photo ? { image: photo } : {}) })
     .eq("id", user.id);
   if (handleError) console.error("saveXProfile", handleError.message);
   const { error } = await admin
