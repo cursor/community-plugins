@@ -1142,6 +1142,7 @@ img {
 /* What a refresh found, after the row's buttons. */
 .sub-result {
   order: 1;
+  align-self: center;
   font-size: 13px;
   color: var(--muted);
 }
