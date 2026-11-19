@@ -5,7 +5,7 @@ import { AddButton } from "@/components/add-button";
 import { DetailBot } from "@/components/bot-art";
 import { BotRow } from "@/components/bot-row";
 import { MemberAvatar } from "@/components/member-avatar";
-import { getListedBot, listListedBots } from "@/data/bots";
+import { getListedBot, listRelatedBots } from "@/data/bots";
 import { categoryLabel } from "@/lib/categories";
 import { creatorPath } from "@/lib/creator-handle";
 import { formatAdds, formatRelativeDate } from "@/lib/format";
@@ -37,12 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BotPage({ params }: Props) {
   const bot = await getListedBot((await params).slug);
   if (!bot) notFound();
-  const related = (await listListedBots())
-    .filter((b) => b.category === bot.category && b.id !== bot.id)
-    .sort(
-      (a, b) => b.installsRecent - a.installsRecent || b.installs - a.installs,
-    )
-    .slice(0, 3);
+  const related = await listRelatedBots(bot);
 
   return (
     <div className="detail">

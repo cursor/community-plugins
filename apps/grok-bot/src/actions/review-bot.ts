@@ -6,6 +6,7 @@ import { z } from "zod";
 import { reviewBot as runAiReview } from "@/lib/ai-review";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { CATEGORY_IDS } from "@/lib/categories";
+import { expireListings } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 const Input = z.object({
@@ -75,6 +76,7 @@ export async function reviewBot(
     },
     after,
   });
+  expireListings("bots");
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath(`/bots/${before.slug}`);
@@ -147,6 +149,7 @@ export async function editBotCategory(
     before: { category: before.category },
     after: { category: parsed.data.category },
   });
+  expireListings("bots");
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath(`/bots/${before.slug}`);

@@ -91,7 +91,7 @@ function BotList({ bots }: { bots: Promise<DirectoryBot[]> }) {
   return <Directory bots={use(bots)} />;
 }
 
-// Apps aren't ranked, so each visit gets a fresh pick (official apps still
+// Apps aren't ranked, so the pick changes every minute (official apps still
 // come first). The database picks it, so hydration sees the same order.
 function AppList({
   apps,

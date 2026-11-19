@@ -2,6 +2,7 @@ import "server-only";
 
 import type { ModerationContext } from "@directories/plugins/moderation";
 import { revalidatePath } from "next/cache";
+import { expireListings } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**
@@ -43,6 +44,7 @@ export function appModerationContext(actorId: string): ModerationContext {
     source: "web",
     db: createAdminClient,
     invalidate: async (slug) => {
+      expireListings("apps");
       revalidatePath("/admin");
       revalidatePath("/");
       revalidatePath(`/apps/${slug}`);

@@ -1,8 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
 import slugify from "slugify";
 import { type Body, bodyForShape } from "@/lib/avatar";
 import { creatorHandle } from "@/lib/creator-handle";
+import { cached } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { allRows, allRowsIn } from "@/utils/supabase/all-rows";
 
@@ -182,7 +184,7 @@ async function toDirectoryBots(
   });
 }
 
-export async function listListedBots(): Promise<DirectoryBot[]> {
+async function loadListedBots(): Promise<DirectoryBot[]> {
   const admin = await createAdminClient();
   const [rows, velocity] = await Promise.all([
     allRows<BotRow>((from, to) =>
@@ -210,7 +212,38 @@ export async function listListedBots(): Promise<DirectoryBot[]> {
   return toDirectoryBots(rows, recent);
 }
 
-export async function getListedBot(slug: string): Promise<DirectoryBot | null> {
+/** Every listed bot, with its adds in the last 30 days. */
+export const listListedBots = cached("listed-bots", ["bots"], loadListedBots);
+
+const RELATED = 3;
+
+/**
+ * The most added bots in a category: what a bot's page shows under "More
+ * in". One more than a page shows, so the bot itself can be left out.
+ */
+const topInCategory = cached(
+  "top-in-category",
+  ["bots"],
+  async (category: string): Promise<DirectoryBot[]> =>
+    (await listListedBots())
+      .filter((b) => b.category === category)
+      .sort(
+        (a, b) =>
+          b.installsRecent - a.installsRecent || b.installs - a.installs,
+      )
+      .slice(0, RELATED + 1),
+);
+
+/** Other bots in the same category, most added first. */
+export async function listRelatedBots(
+  bot: DirectoryBot,
+): Promise<DirectoryBot[]> {
+  return (await topInCategory(bot.category))
+    .filter((b) => b.id !== bot.id)
+    .slice(0, RELATED);
+}
+
+async function loadListedBot(slug: string): Promise<DirectoryBot | null> {
   const admin = await createAdminClient();
   const { data } = await admin
     .from("grok_bots")
@@ -222,6 +255,11 @@ export async function getListedBot(slug: string): Promise<DirectoryBot | null> {
   const [bot] = await toDirectoryBots([data as BotRow]);
   return bot;
 }
+
+/** One listed bot. A page asks twice (metadata, then the page): once each. */
+export const getListedBot = cache(
+  cached("listed-bot", ["bots"], loadListedBot),
+);
 
 /** A member's listed bots, most added first: what their profile shows. */
 export async function listListedBotsByOwner(

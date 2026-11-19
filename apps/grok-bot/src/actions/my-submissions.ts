@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getViewer } from "@/lib/auth";
 import { CREDIT_CHANGED, cardAuthor } from "@/lib/credit";
+import { expireListings } from "@/lib/data-cache";
 import { getPublicTemplate } from "@/lib/grok-bot-api";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
@@ -67,6 +68,7 @@ export async function removeMyBot(botId: string): Promise<MineResult> {
     });
   // Submitting it again depends on this entry, so a failed write is an error.
   if (logError) throw logError;
+  expireListings("bots");
   revalidatePath("/");
   revalidatePath("/my-bots");
   revalidatePath(`/bots/${before.slug}`);
@@ -155,6 +157,7 @@ export async function creditMyBots(
     }
   }
   if (changed > 0) {
+    expireListings("bots");
     revalidatePath("/");
     revalidatePath("/my-bots");
     for (const bot of bots) revalidatePath(`/bots/${bot.slug}`);

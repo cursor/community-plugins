@@ -4,6 +4,7 @@ import { cache } from "react";
 import { type AppListItem, listAppsByCreator } from "@/data/apps";
 import { type DirectoryBot, listListedBotsByOwner } from "@/data/bots";
 import { creatorHandle, creatorPath, isXHandle } from "@/lib/creator-handle";
+import { cached } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 /**
@@ -101,16 +102,20 @@ export type CreatorProfile = {
  * shows a member who has only pending or declined submissions.
  */
 export const getCreatorProfile = cache(
-  async (handle: string): Promise<CreatorProfile | null> => {
-    const creator = await findCreator(handle);
-    if (!creator) return null;
-    const [bots, apps] = await Promise.all([
-      listListedBotsByOwner(creator.id),
-      listAppsByCreator(creator.id),
-    ]);
-    if (bots.length + apps.length === 0) return null;
-    return { creator, bots, apps };
-  },
+  cached(
+    "creator-profile",
+    ["bots", "apps"],
+    async (handle: string): Promise<CreatorProfile | null> => {
+      const creator = await findCreator(handle);
+      if (!creator) return null;
+      const [bots, apps] = await Promise.all([
+        listListedBotsByOwner(creator.id),
+        listAppsByCreator(creator.id),
+      ]);
+      if (bots.length + apps.length === 0) return null;
+      return { creator, bots, apps };
+    },
+  ),
 );
 
 /**

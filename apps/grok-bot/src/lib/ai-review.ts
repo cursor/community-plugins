@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CATEGORIES, CATEGORY_IDS } from "@/lib/categories";
 import { CATEGORY_HINTS } from "@/lib/category-pick";
+import { expireListings } from "@/lib/data-cache";
 import { SPACEXSI_MODEL, spacexsi, spacexsiConfigured } from "@/lib/spacexsi";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
@@ -249,6 +250,7 @@ export async function reviewBot(botId: string): Promise<ReviewOutcome> {
       severity: verdict.severity,
     },
   });
+  if (safe) expireListings("bots");
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/my-bots");

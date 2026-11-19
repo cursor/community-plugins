@@ -2,6 +2,8 @@ import "server-only";
 
 import { appCategories, worksInGrokBot } from "@directories/plugins/apps";
 import { type McpSetup, parseMcpSetup } from "@directories/plugins/mcp-config";
+import { cache } from "react";
+import { cached } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { allRows } from "@/utils/supabase/all-rows";
 
@@ -138,7 +140,7 @@ export type AppsFirstPage = {
  * community apps with the totals, so a page doesn't load every app to show
  * a few (`grok_bot_apps_first_page()` in SQL).
  */
-export async function firstAppsPage({
+export function firstAppsPage({
   limit = 60,
   category = null,
   exclude = null,
@@ -147,6 +149,17 @@ export async function firstAppsPage({
   category?: string | null;
   exclude?: string | null;
 } = {}): Promise<AppsFirstPage> {
+  return appsFirstPage(limit, category, exclude);
+}
+
+// The pick is random, so visitors within the same minute see the same one.
+const appsFirstPage = cached("apps-first-page", ["apps"], loadAppsFirstPage);
+
+async function loadAppsFirstPage(
+  limit: number,
+  category: string | null,
+  exclude: string | null,
+): Promise<AppsFirstPage> {
   const admin = await createAdminClient();
   const { data, error } = await admin.rpc("grok_bot_apps_first_page", {
     p_limit: limit,
@@ -219,7 +232,10 @@ function toolsFrom(value: unknown): AppComponent["tools"] {
   );
 }
 
-export async function getApp(slug: string): Promise<AppDetail | null> {
+/** One listed app. A page asks twice (metadata, then the page): once each. */
+export const getApp = cache(cached("app", ["apps"], loadApp));
+
+async function loadApp(slug: string): Promise<AppDetail | null> {
   const admin = await createAdminClient();
   const { data } = await admin
     .from("plugins")
