@@ -276,6 +276,10 @@ export function SubmitForm({
       >
         {submitting ? "Submitting…" : "Submit for review"}
       </button>
+      <p className="submit-note" data-testid="submit-rules">
+        Submissions are reviewed against the{" "}
+        <Link href="/about#rules">listing rules</Link>.
+      </p>
       {submitError && <div className="form-error">{submitError}</div>}
     </form>
   );

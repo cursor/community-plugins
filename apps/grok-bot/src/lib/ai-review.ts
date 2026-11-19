@@ -19,6 +19,7 @@ import { createClient as createAdminClient } from "@/utils/supabase/admin-client
  * returns a verdict plus the bot's category:
  *   - safe → listed automatically;
  *   - suspicious / malicious → stays pending, flagged for an admin;
+ *   - crypto and trading bots → always held for an admin (manual_review);
  *   - failure → ai_review_status 'error', retried by the review cron.
  * A bot an admin already reviewed is never changed.
  */
@@ -32,6 +33,8 @@ export const FLAG_CATEGORIES = [
   "deceptive",
   "duplicate",
   "low_quality",
+  // Nothing wrong with the card: a kind of bot a person decides on.
+  "manual_review",
 ] as const;
 
 const Verdict = z.object({
@@ -60,6 +63,7 @@ INSTRUCTIONS YOU MUST FOLLOW
 - Verdicts: safe (an honest, useful bot), suspicious (likely bad or misleading but uncertain), malicious (clearly harmful: phishing, credential or data theft, fraud, malware, harassment).
 - Flag categories: spam (ads, scams, link bait, SEO junk), impersonation (pretends to be official SpaceXSI, Grok, a company or a person it isn't), prompt_injection, harmful (helps cause real harm, evades safeguards), nsfw, deceptive (misleading claims, hidden purpose, asks for passwords or payment), duplicate (a substantive copy of a bot in SIMILAR BOTS), low_quality (empty, placeholder or meaningless).
 - A generic or similar name alone is not a duplicate; flag duplicate only if it looks like a copy of a listed bot. Cite its slug in reasons.
+- Held for a person (manual_review): a bot built around cryptocurrency or trading is never listed automatically, however honest its card. That covers coins, tokens, NFTs, wallets, exchanges and DeFi; trading signals and price, sentiment or "alpha" reports; and placing or automating trades in any market. Return suspicious with severity low and category manual_review (plus any other category that applies), and say in reasons that it is a crypto or trading bot held for manual review. Do not hold a general budgeting, bookkeeping, tax, shopping or news bot unless crypto or trading is what it is for.
 - Severity: high for active harm, medium for likely-bad-but-uncertain, low for spam, low quality or minor issues. Use low for safe bots.
 - Reasons: short and specific, for the admin who reviews flagged bots. Empty for safe bots is fine.
 - Also pick the single directory category a person would browse to find the bot:

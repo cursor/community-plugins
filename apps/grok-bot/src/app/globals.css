@@ -1876,6 +1876,14 @@ img {
   padding-left: 0;
   list-style: none;
 }
+/* The listing rules read as a list, so they get their bullets back. */
+.about-page ul.rules {
+  padding-left: 20px;
+  list-style: disc;
+}
+.about-page ul.rules li {
+  margin-bottom: 4px;
+}
 .about-page b {
   font-weight: 500;
   color: var(--fg);
@@ -2050,6 +2058,17 @@ img {
   .message-arrive {
     animation: none;
   }
+}
+/* Under a submit button: what a submission is held to. */
+.submit-note {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.submit-note a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .form-error {
   font-size: 13px;

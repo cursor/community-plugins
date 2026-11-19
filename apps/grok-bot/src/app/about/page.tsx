@@ -45,12 +45,42 @@ export default function AboutPage() {
         <p>
           Ask your bot to “Share yourself as a public template”, then paste the
           link on <Link href="/submit">Submit a bot</Link>. Every submission is
-          reviewed before it’s listed. Most are listed within minutes; some wait
-          for a person to look.
+          reviewed against the <a href="#rules">listing rules</a> before it’s
+          listed. Most are listed within minutes; some wait for a person to
+          look.
         </p>
         <p>
           On <Link href="/my-bots">Your submissions</Link> you can remove a bot
           or change the name it’s credited to.
+        </p>
+      </section>
+
+      <section id="rules" data-testid="listing-rules">
+        <h2>Listing rules</h2>
+        <p>We don’t list bots that:</p>
+        <ul className="rules">
+          <li>copy a bot that’s already listed</li>
+          <li>
+            use the name of a real person or another company’s product as their
+            own
+          </li>
+          <li>track or monitor other people without their knowledge</li>
+          <li>mislead people about what they do or who made them</li>
+          <li>are spam, adult content, or built to cause harm</li>
+        </ul>
+        <p>
+          A bot’s description is shown to people. Say what the bot does and who
+          it’s for, and don’t write it as instructions to the bot.
+        </p>
+        <p>
+          If we decline a bot, you’ll see why on{" "}
+          <Link href="/my-bots">Your submissions</Link> and can submit it again
+          once it’s fixed.
+        </p>
+        <p>
+          We can decline or remove any listing at our discretion. A listing
+          isn’t an endorsement: community bots are made by their creators, not
+          by the Grok Bot team.
         </p>
       </section>
 
