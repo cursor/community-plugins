@@ -69,7 +69,7 @@ INSTRUCTIONS YOU MUST FOLLOW
 - Also pick the single directory category a person would browse to find the bot:
 ${CATEGORIES.map((c) => `  - ${c.id}: ${CATEGORY_HINTS[c.id]}`).join("\n")}`;
 
-type SimilarBot = {
+export type SimilarBot = {
   name: string;
   slug: string;
   status: string;
@@ -103,24 +103,28 @@ ${similarBlock}`;
 export async function judgeBot(
   bot: { name: string; description: string },
   similar: SimilarBot[],
+  opts?: { signal?: AbortSignal },
 ): Promise<AiVerdict> {
-  const response = await spacexsi().responses.create({
-    model: SPACEXSI_MODEL,
-    input: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: buildPrompt(bot, similar) },
-    ],
-    reasoning: { effort: "low" },
-    prompt_cache_key: "grok-bot-directory:ai-review",
-    text: {
-      format: {
-        type: "json_schema",
-        name: "bot_review",
-        schema: VERDICT_JSON_SCHEMA,
-        strict: true,
+  const response = await spacexsi().responses.create(
+    {
+      model: SPACEXSI_MODEL,
+      input: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: buildPrompt(bot, similar) },
+      ],
+      reasoning: { effort: "low" },
+      prompt_cache_key: "grok-bot-directory:ai-review",
+      text: {
+        format: {
+          type: "json_schema",
+          name: "bot_review",
+          schema: VERDICT_JSON_SCHEMA,
+          strict: true,
+        },
       },
     },
-  });
+    opts,
+  );
   return response.toJson(Verdict);
 }
 

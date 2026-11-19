@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { claimMarketplaceBots } from "@/lib/claim-bots";
 import { devLoginEnabled } from "@/lib/dev-login";
 import { rememberSignIn } from "@/lib/last-sign-in";
 import { safeNextPath } from "@/lib/safe-next";
@@ -42,6 +43,19 @@ export async function POST(request: Request) {
       new URL(`/login?error=1&next=${encodeURIComponent(next)}`, request.url),
       { status: 303 },
     );
+  // What an X sign-in does once it knows the member's handle, so that can be
+  // tried locally: give the local user an x_handle and sign in.
+  const { data: signedIn } = await supabase.auth.getUser();
+  if (signedIn.user) {
+    const admin = await createAdminClient();
+    const { data: member } = await admin
+      .from("users")
+      .select("x_handle")
+      .eq("id", signedIn.user.id)
+      .maybeSingle();
+    if (member?.x_handle)
+      await claimMarketplaceBots(signedIn.user.id, member.x_handle);
+  }
   return rememberSignIn(
     NextResponse.redirect(new URL(next, request.url), { status: 303 }),
     "dev",

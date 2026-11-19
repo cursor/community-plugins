@@ -3,7 +3,11 @@ import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
 import { CardBot, SceneBot } from "@/components/bot-art";
 import { CopyLink } from "@/components/copy-link";
-import { CreditChoice, RemoveBot } from "@/components/my-submission-controls";
+import {
+  CreditChoice,
+  RefreshBot,
+  RemoveBot,
+} from "@/components/my-submission-controls";
 import { Segmented } from "@/components/segmented";
 import { type AppSubmission, listAppsByOwner } from "@/data/apps";
 import {
@@ -243,11 +247,13 @@ function BotSubmission({ bot, fresh }: { bot: DirectoryBot; fresh: boolean }) {
               View listing
             </Link>
           )}
+          {bot.status === "listed" && <RefreshBot botId={bot.id} />}
           {(bot.status === "listed" || bot.status === "pending") && (
             <RemoveBot
               botId={bot.id}
               name={bot.name}
               pending={bot.status === "pending"}
+              marketplace={bot.fromMarketplace}
             />
           )}
         </div>

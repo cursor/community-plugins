@@ -1,5 +1,6 @@
 import "server-only";
 import type { User } from "@supabase/supabase-js";
+import { claimMarketplaceBots } from "@/lib/claim-bots";
 import { expireListings } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
@@ -31,6 +32,9 @@ export function xPhotoOf(user: User): string | null {
  *   GitHub sign-in, so a profile here looks like the member does on X.
  * - `social_x_link`, the profile link cursor.directory's form edits, when it
  *   is empty. A link the member set is never replaced.
+ *
+ * It also hands them the marketplace bots credited to that handle (see
+ * claimMarketplaceBots).
  */
 export async function saveXProfile(user: User) {
   const handle = xHandleOf(user);
@@ -59,4 +63,6 @@ export async function saveXProfile(user: User) {
   // a moment ago and been told (and the site remembered) that nobody was:
   // a member's first X sign-in led straight to "this page doesn't exist".
   expireListings("profiles");
+  // The marketplace bots credited to this handle are theirs.
+  await claimMarketplaceBots(user.id, handle);
 }

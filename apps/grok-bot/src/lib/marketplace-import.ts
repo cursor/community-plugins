@@ -46,7 +46,9 @@ export type MarketplaceReport = {
  * Imports community listings from the official x.ai/bot marketplace (not
  * "From Grok Bot Team") as listed bots, and refreshes the card and creator of
  * ones imported before. Member submissions of the same bot keep their owner
- * and status.
+ * and status. So does a marketplace bot its creator has claimed (see
+ * claimMarketplaceBots): one they took out of the directory stays out, and
+ * the credit they chose for it stays theirs.
  */
 export async function importMarketplace(): Promise<MarketplaceReport> {
   const admin = await createAdminClient();
@@ -57,15 +59,21 @@ export async function importMarketplace(): Promise<MarketplaceReport> {
       isShareId(l.shareId) &&
       l.defaultAvatar,
   );
-  const existing = await allRows<{ share_id: string; source: string }>(
-    (from, to) =>
-      admin
-        .from("grok_bots")
-        .select("share_id, source", { count: "exact" })
-        .order("share_id")
-        .range(from, to),
+  const existing = await allRows<{
+    share_id: string;
+    source: string;
+    owner_id: string | null;
+  }>((from, to) =>
+    admin
+      .from("grok_bots")
+      .select("share_id, source, owner_id", { count: "exact" })
+      .order("share_id")
+      .range(from, to),
   );
   const sourceOf = new Map(existing.map((r) => [r.share_id, r.source]));
+  const claimed = new Set(
+    existing.filter((r) => r.owner_id).map((r) => r.share_id),
+  );
   const taken = new Set<string>();
   const report: MarketplaceReport = {
     listings: listings.length,
@@ -76,24 +84,27 @@ export async function importMarketplace(): Promise<MarketplaceReport> {
   const now = new Date().toISOString();
 
   for (const l of community) {
-    const card = {
+    const look = {
       name: fit(l.name.trim(), NAME_MAX),
       description: fit(l.description.trim(), DESCRIPTION_MAX),
       avatar_shape: l.defaultAvatar!.shape,
       avatar_color: l.defaultAvatar!.color,
-      creator_name: l.creator?.name || null,
-      creator_image: l.creator?.profilePhotoUrl || null,
-      creator_x_handle: l.creator?.handles?.x || null,
       template_updated_at: l.updatedAtMs
         ? new Date(Number(l.updatedAtMs)).toISOString()
         : null,
+    };
+    const card = {
+      ...look,
+      creator_name: l.creator?.name || null,
+      creator_image: l.creator?.profilePhotoUrl || null,
+      creator_x_handle: l.creator?.handles?.x || null,
     };
     const source = sourceOf.get(l.shareId);
     if (source === "submission") continue;
     if (source === "marketplace") {
       const { error: e } = await admin
         .from("grok_bots")
-        .update(card)
+        .update(claimed.has(l.shareId) ? look : card)
         .eq("share_id", l.shareId);
       if (e) throw e;
       report.refreshed++;

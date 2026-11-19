@@ -234,4 +234,151 @@ test.describe("managing your own bots", () => {
       .toBe("pending");
     expect((await row())?.creator_name).toBeNull();
   });
+
+  test("a marketplace bot goes to its creator when their X handle matches", async ({
+    page,
+  }) => {
+    // Two bots imported from the marketplace, owned by nobody here: one
+    // credited to the local member's X handle, one to somebody else's.
+    const market = (slug: string, handle: string) => ({
+      slug,
+      share_id: `${slug}-share`,
+      name:
+        slug === "e2e-market-mine"
+          ? "Quill Market Mine"
+          : "Quill Market Theirs",
+      description: "Imported from the official marketplace.",
+      avatar_shape: "cloud",
+      avatar_color: "blue",
+      category: "operations",
+      status: "listed",
+      source: "marketplace",
+      creator_name: "Zephyr Maker",
+      creator_x_handle: handle,
+      ai_review_status: "safe",
+    });
+    const { error } = await db()
+      .from("grok_bots")
+      .insert([
+        market("e2e-market-mine", "Zephyr_Dev"),
+        market("e2e-market-theirs", "Somebody_Else"),
+      ]);
+    if (error) throw error;
+    const me = await devUserId();
+    // Their handle as X gave it, in another capitalisation than the card's.
+    await db().from("users").update({ x_handle: "zephyr_dev" }).eq("id", me);
+    try {
+      await signIn(page, "/my-bots");
+      const mine = card(page, "Quill Market Mine");
+      await expect(mine).toHaveAttribute("data-status", "listed");
+      await expect(card(page, "Quill Market Theirs")).toHaveCount(0);
+      const { data: rows } = await db()
+        .from("grok_bots")
+        .select("slug, owner_id")
+        .in("slug", ["e2e-market-mine", "e2e-market-theirs"])
+        .order("slug");
+      expect(rows).toEqual([
+        { slug: "e2e-market-mine", owner_id: me },
+        { slug: "e2e-market-theirs", owner_id: null },
+      ]);
+      // It's on their profile now.
+      await page.goto("/u/zephyr_dev");
+      await expect(page.getByTestId("creator-profile")).toContainText(
+        "Quill Market Mine",
+      );
+
+      // They can take it out of this directory; the marketplace keeps it.
+      await page.goto("/my-bots");
+      await mine.getByTestId("remove-bot").click();
+      await expect(mine.getByTestId("remove-confirm")).toContainText(
+        "It stays on the official Marketplace.",
+      );
+      await mine.getByRole("button", { name: "Yes, remove" }).click();
+      await expect(mine.getByTestId("submission-status")).toHaveText("Removed");
+    } finally {
+      await db().from("users").update({ x_handle: null }).eq("id", me);
+    }
+  });
+
+  test("Refresh brings a listing up to date with the bot on x.ai", async ({
+    page,
+  }) => {
+    test.skip(!process.env.E2E_NETWORK, "needs network (E2E_NETWORK=1)");
+    // The changed card is reviewed for real, which can take a minute.
+    test.setTimeout(120_000);
+    // A real shared bot whose listing has gone stale, and one whose share
+    // link leads nowhere.
+    const base = {
+      avatar_shape: "cloud",
+      avatar_color: "blue",
+      category: "operations",
+      status: "listed",
+      source: "submission",
+      owner_id: await devUserId(),
+      ai_review_status: "safe",
+    };
+    const { error } = await db()
+      .from("grok_bots")
+      .insert([
+        {
+          ...base,
+          slug: "e2e-refresh-real",
+          share_id: "BlzS2Llj7_9VSmi3TjX0r",
+          name: "Quill Stale Name",
+          description: "What the bot said before it was edited.",
+        },
+        {
+          ...base,
+          slug: "e2e-refresh-gone",
+          share_id: "e2eNoSuchShare0000000",
+          name: "Quill Gone Bot",
+          description: "Its share link leads nowhere.",
+        },
+      ]);
+    if (error) throw error;
+
+    await signIn(page, "/my-bots");
+    // Found by its listing link: the name on the card is what changes.
+    const stale = page.getByTestId("submission").filter({
+      has: page.locator('a[href="/bots/e2e-refresh-real"]'),
+    });
+    await expect(stale).toContainText("Quill Stale Name");
+    await stale.getByTestId("refresh-bot").click();
+    await expect(stale.getByTestId("refresh-result")).toHaveText(
+      "Updated from x.ai.",
+      { timeout: 70_000 },
+    );
+    const { data: row } = await db()
+      .from("grok_bots")
+      .select("name, description, status, avatar_shape")
+      .eq("slug", "e2e-refresh-real")
+      .single();
+    expect(row?.status).toBe("listed");
+    expect(row?.name).not.toBe("Quill Stale Name");
+    expect(row?.description).not.toContain("before it was edited");
+    // The card shows the bot's real name now; a second press finds nothing.
+    await expect(stale).toContainText(row?.name ?? "");
+    await expect(stale).not.toContainText("Quill Stale Name");
+    await stale.getByTestId("refresh-bot").click();
+    await expect(stale.getByTestId("refresh-result")).toHaveText(
+      "Already up to date.",
+      { timeout: 20_000 },
+    );
+
+    // A bot that's no longer shared: its owner is told, and decides.
+    const gone = card(page, "Quill Gone Bot");
+    await gone.getByTestId("refresh-bot").click();
+    await expect(gone.getByTestId("refresh-result")).toContainText(
+      "isn’t shared publicly on x.ai any more",
+      { timeout: 20_000 },
+    );
+    await expect(gone).toHaveAttribute("data-status", "listed");
+  });
+
+  test("the scheduled refresh only runs for the scheduler", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/cron/refresh-bots");
+    expect(res.status()).toBe(401);
+  });
 });

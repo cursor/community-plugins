@@ -1139,6 +1139,13 @@ img {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* What a refresh found, after the row's buttons. */
+.sub-result {
+  order: 1;
+  align-self: center;
+  font-size: 13px;
+  color: var(--muted);
+}
 .sub-confirm {
   display: inline-flex;
   align-items: center;
