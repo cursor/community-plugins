@@ -8,6 +8,7 @@ import type { AppListItem, AppsFirstPage } from "@/data/apps";
 import { APP_CATEGORIES, appCategoryLabel } from "@/lib/app-categories";
 import { APP_SORTS, type AppSort, compareApps } from "@/lib/app-sort";
 import { formatAddCount, formatRelativeDate } from "@/lib/format";
+import { rankResults, SEARCH_THRESHOLD } from "@/lib/search-rank";
 import { useHeld } from "@/lib/use-held";
 import { AppRow } from "./app-row";
 import { SceneBot } from "./bot-art";
@@ -153,9 +154,10 @@ export function AppDirectory({
           { name: "skills", weight: 1 },
           { name: "description", weight: 0.5 },
         ],
-        threshold: 0.35,
+        threshold: SEARCH_THRESHOLD,
         ignoreLocation: true,
         minMatchCharLength: 2,
+        includeScore: true,
       }),
     [all, searching],
   );
@@ -174,7 +176,12 @@ export function AppDirectory({
   // already picked for the URL's category.
   const listed = useMemo(() => {
     if (!all) return null;
-    const matched = fuse ? fuse.search(query).map((r) => r.item) : all;
+    const order = compareApps(sort);
+    // Search results go by how well they match; the chosen sort orders the
+    // list and settles ties between equally good matches.
+    const matched = fuse
+      ? rankResults(fuse.search(query), query, order)
+      : [...all].sort(order);
     const counts = fuse
       ? Object.fromEntries(
           APP_CATEGORIES.map((c) => [
@@ -183,19 +190,9 @@ export function AppDirectory({
           ]),
         )
       : null;
-    // As with bots: an app named exactly what was typed comes first, then
-    // the chosen order.
-    const q = query.toLowerCase();
-    const order = compareApps(sort);
-    const apps = matched
-      .filter((a) => !category || a.categories.includes(category))
-      .sort(
-        (a, b) =>
-          (fuse
-            ? Number(b.name.toLowerCase() === q) -
-              Number(a.name.toLowerCase() === q)
-            : 0) || order(a, b),
-      );
+    const apps = matched.filter(
+      (a) => !category || a.categories.includes(category),
+    );
     return { apps, counts };
   }, [all, fuse, query, category, sort]);
   const apps = listed ? listed.apps : first.apps;

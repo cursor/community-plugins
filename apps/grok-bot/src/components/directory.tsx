@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DirectoryBot } from "@/data/bots";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import { formatAddCount, formatRelativeDate } from "@/lib/format";
+import { rankResults, SEARCH_THRESHOLD } from "@/lib/search-rank";
 import { useHeld } from "@/lib/use-held";
 import { SceneBot } from "./bot-art";
 import { BotRow } from "./bot-row";
@@ -90,15 +91,22 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
           { name: "creator.xHandle", weight: 1 },
           { name: "description", weight: 0.5 },
         ],
-        threshold: 0.35,
+        threshold: SEARCH_THRESHOLD,
         ignoreLocation: true,
         minMatchCharLength: 2,
+        includeScore: true,
       }),
     [bots],
   );
 
   const searching = query.length >= 2;
-  const matched = searching ? fuse.search(query).map((r) => r.item) : bots;
+  // The chosen sort orders the list, and settles ties between search
+  // results that match equally well.
+  const bySort = (a: DirectoryBot, b: DirectoryBot) =>
+    metricFor(b, sort) - metricFor(a, sort);
+  const matched = searching
+    ? rankResults(fuse.search(query), query, bySort)
+    : [...bots].sort(bySort);
   const counts = Object.fromEntries(
     CATEGORIES.map((c) => [
       c.id,
@@ -110,14 +118,7 @@ export function Directory({ bots }: { bots: DirectoryBot[] }) {
   const shownCategories = CATEGORIES.filter(
     (c) => c.id === category || bots.some((b) => b.category === c.id),
   );
-  const q = query.toLowerCase();
-  const visible = matched
-    .filter((b) => !category || b.category === category)
-    .sort((a, b) => {
-      const exact =
-        Number(b.name.toLowerCase() === q) - Number(a.name.toLowerCase() === q);
-      return exact || metricFor(b, sort) - metricFor(a, sort);
-    });
+  const visible = matched.filter((b) => !category || b.category === category);
 
   return (
     <>

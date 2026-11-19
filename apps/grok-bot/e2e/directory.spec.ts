@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectBotReactsToHover, FIXTURES } from "./fixtures";
+import { db, expectBotReactsToHover, FIXTURES, seedFixtures } from "./fixtures";
 
 test.describe("directory", () => {
   test("lists bots and searches them through the URL", async ({ page }) => {
@@ -110,6 +110,54 @@ test.describe("directory", () => {
         "content",
         /noindex/,
       );
+    }
+  });
+
+  test("search puts the bot that was searched for first, not the most added", async ({
+    page,
+  }) => {
+    // A new bot named for what's typed, and a far more popular one that only
+    // nearly mentions it.
+    const bot = (slug: string, extra: Record<string, unknown>) => ({
+      slug,
+      share_id: `${slug}-share`,
+      avatar_shape: "cloud",
+      avatar_color: "blue",
+      category: "personal",
+      status: "listed",
+      source: "submission",
+      ai_review_status: "safe",
+      ...extra,
+    });
+    const { error } = await db()
+      .from("grok_bots")
+      .insert([
+        bot("e2e-quorvex-keeper", {
+          name: "Quorvex Receipt Keeper",
+          description: "Turns your Quorvex receipts into a purchase history.",
+          install_count: 0,
+        }),
+        bot("e2e-popular-helper", {
+          name: "Popular Helper",
+          description: "Sorts your inbox. Works with Quorvax accounts too.",
+          install_count: 900,
+        }),
+      ]);
+    if (error) throw error;
+    try {
+      await page.goto("/");
+      await page
+        .getByPlaceholder("Search by creator or bot name")
+        .fill("Quorvex");
+      const rows = page.getByTestId("bot-row");
+      await expect(rows.first()).toContainText("Quorvex Receipt Keeper");
+      // The near miss is still found, after it.
+      await expect(rows.nth(1)).toContainText("Popular Helper");
+      // A word that's nowhere near anything finds nothing, not everything.
+      await page.getByPlaceholder("Search by creator or bot name").fill("zzqx");
+      await expect(page.getByTestId("empty-state")).toBeVisible();
+    } finally {
+      await seedFixtures();
     }
   });
 });
