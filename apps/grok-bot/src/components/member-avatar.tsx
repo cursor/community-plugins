@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { sharpXPhoto } from "@/lib/x-photo";
 
 const PALETTE = [
   "#1084FE",
@@ -59,6 +60,7 @@ export function MemberAvatar({
   image: string | null;
   size?: number;
 }) {
+  const photo = image && sharpXPhoto(image);
   return (
     <span
       className="avatar"
@@ -66,20 +68,20 @@ export function MemberAvatar({
         width: size,
         height: size,
         fontSize: size * 0.36,
-        background: image ? "var(--pill)" : colorFor(name),
+        background: photo ? "var(--pill)" : colorFor(name),
       }}
       title={name}
     >
-      {image ? (
+      {photo ? (
         <Image
-          src={image}
+          src={photo}
           alt=""
           // Asked for at three times the size it's shown: phones have 3x
           // screens, and a photo that isn't square is resized by its width,
           // which leaves a wide one too few rows to fill the circle.
           width={size * 3}
           height={size * 3}
-          unoptimized={!optimizable(image)}
+          unoptimized={!optimizable(photo)}
         />
       ) : (
         initials(name)
