@@ -692,7 +692,10 @@ img {
   vertical-align: top;
 }
 @media (max-width: 640px) {
-  .cats {
+  /* A row that scrolls to the screen's edges but starts in line with the
+     page. (Written as `fieldset.chips.cats` to outrank the reset on
+     fieldset.chips further down, which was zeroing this padding.) */
+  fieldset.chips.cats {
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -700,6 +703,7 @@ img {
     margin-left: -20px;
     margin-right: -20px;
     padding: 0 20px;
+    scroll-padding-inline: 20px;
     scrollbar-width: none;
   }
   .cats .chip {
