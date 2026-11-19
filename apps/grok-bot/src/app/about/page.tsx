@@ -57,9 +57,9 @@ export default function AboutPage() {
 
       <section id="rules" data-testid="listing-rules">
         <h2>Listing rules</h2>
-        <p>We don’t list bots that:</p>
+        <p>We don’t list bots or apps that:</p>
         <ul className="rules">
-          <li>copy a bot that’s already listed</li>
+          <li>copy one that’s already listed</li>
           <li>
             use the name of a real person or another company’s product as their
             own
@@ -79,8 +79,8 @@ export default function AboutPage() {
         </p>
         <p>
           We can decline or remove any listing at our discretion. A listing
-          isn’t an endorsement: community bots are made by their creators, not
-          by the Grok Bot team.
+          isn’t an endorsement: community bots and apps are made by their
+          creators, not by the Grok Bot team.
         </p>
       </section>
 
