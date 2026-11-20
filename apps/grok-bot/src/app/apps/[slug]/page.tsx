@@ -174,6 +174,14 @@ export default async function AppPage({ params }: Props) {
           </span>
         )}
       </div>
+      {!app.marketplaceId && (
+        <p className="detail-note" data-testid="community-app-notice">
+          A community app, made by its publisher and not by the Grok Bot team.
+          We scan apps before listing them, but we can’t see what an app’s
+          server does with your data once you connect.{" "}
+          <Link href="/about#adding">Before you add an app</Link>
+        </p>
+      )}
 
       {contents && (
         <section className="app-parts" aria-labelledby="inside-title">

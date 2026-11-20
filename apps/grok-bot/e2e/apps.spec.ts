@@ -200,6 +200,7 @@ test.describe("apps", () => {
       page.getByRole("heading", { name: APP_FIXTURES.official.name }),
     ).toBeVisible();
     await expect(page.getByTestId("official-badge")).toBeVisible();
+    await expect(page.getByTestId("community-app-notice")).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Add to Grok Bot" }),
     ).toHaveAttribute(
@@ -213,6 +214,12 @@ test.describe("apps", () => {
   }) => {
     await page.goto(`/apps/${APP_FIXTURES.community.slug}`);
     await expect(page.getByTestId("official-badge")).toHaveCount(0);
+    // It says who made it and what the scan can't see, and links to more.
+    const notice = page.getByTestId("community-app-notice");
+    await expect(notice).toContainText("not by the Grok Bot team");
+    await expect(
+      notice.getByRole("link", { name: "Before you add an app" }),
+    ).toHaveAttribute("href", "/about#adding");
     // Add opens Grok Bot with a message for its AddMcpServer tool.
     const add = page.getByRole("link", { name: "Add to Grok Bot" });
     const href = new URL((await add.getAttribute("href")) ?? "");

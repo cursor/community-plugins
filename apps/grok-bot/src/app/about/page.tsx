@@ -111,12 +111,25 @@ export default function AboutPage() {
       </section>
 
       <section id="adding">
-        <h2>Before you add a bot</h2>
+        <h2>Before you add a bot or app</h2>
         <p>
-          Community bots are made by their creators, not by the Grok Bot team,
-          and a bot may act on your behalf. Listings are reviewed from their
-          public name and description, so read what a bot says it does before
-          you add it.
+          Community bots and apps are made by their creators, not by the Grok
+          Bot team. A bot may act on your behalf, and an app can read and change
+          whatever you connect it to.
+        </p>
+        <p>
+          Bots are reviewed from their public name and description, so read what
+          a bot says it does before you add it.
+        </p>
+        <p>
+          Apps get an automated security scan before they’re listed. When an app
+          runs on its publisher’s server, the scan can’t see what that server
+          does with your data once you connect, so only add apps from publishers
+          you trust.
+        </p>
+        <p>
+          You add and use community bots and apps at your own risk. We aren’t
+          responsible for what they do.
         </p>
       </section>
     </div>
