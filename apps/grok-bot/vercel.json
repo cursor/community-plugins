@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/refresh-bots",
       "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron/import-apps",
+      "schedule": "* * * * *"
     }
   ]
 }
