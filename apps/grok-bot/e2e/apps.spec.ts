@@ -292,6 +292,13 @@ test.describe("apps", () => {
     expect(missing.status()).toBe(404);
   });
 
+  test("the bulk import job only runs for the scheduler", async ({
+    request,
+  }) => {
+    const res = await request.get("/api/cron/import-apps");
+    expect(res.status()).toBe(401);
+  });
+
   test("apps that aren't listed in the directory 404", async ({ page }) => {
     for (const f of [
       APP_FIXTURES.pending,
