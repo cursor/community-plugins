@@ -952,6 +952,19 @@ img {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* What a community app is, under its Add button. */
+.detail-note {
+  margin: 14px 0 0;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.detail-note a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .imports {
   font-size: 14px;
   color: var(--muted);
