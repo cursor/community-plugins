@@ -33,7 +33,7 @@ const formSchema = z.object({
       message: "Description must be less than 500 characters.",
     }),
   link: z.string().url({
-    message: "Please enter a valid job posting URL.",
+    message: "Please enter a valid URL.",
   }),
   logo: z.string().optional(),
   company_id: z.string().optional(),
