@@ -3,6 +3,7 @@
 import { Star } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useEffect, useRef, useState } from "react";
+import { getStarStatusAction } from "@/actions/get-star-status";
 import { starPluginAction } from "@/actions/star-plugin";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
@@ -33,18 +34,12 @@ export function StarButton({
         return;
       }
       setIsAuthenticated(true);
-      supabase
-        .from("plugin_stars")
-        .select("plugin_id")
-        .eq("plugin_id", pluginId)
-        .eq("user_id", session.user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          const isStarred = !!data;
-          setStarred(isStarred);
-          prevRef.current = { starred: isStarred, count: starCount };
-          setLoaded(true);
-        });
+      getStarStatusAction({ pluginId }).then((result) => {
+        const isStarred = result?.data?.starred === true;
+        setStarred(isStarred);
+        prevRef.current = { starred: isStarred, count: starCount };
+        setLoaded(true);
+      });
     });
   }, [pluginId, starCount]);
 

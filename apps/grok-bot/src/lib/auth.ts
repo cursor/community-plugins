@@ -28,7 +28,8 @@ export async function getViewer(): Promise<Viewer | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
   const handle = xHandleOf(user);
-  const { data: profile } = await supabase
+  const admin = await createAdminClient();
+  const { data: profile } = await admin
     .from("users")
     .select("name, image, slug")
     .eq("id", user.id)

@@ -2,7 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 
 export const deletePluginAction = authActionClient
@@ -19,7 +19,7 @@ export const deletePluginAction = authActionClient
 
     const { data: existing, error: fetchError } = await supabase
       .from("plugins")
-      .select("id, owner_id, slug, active")
+      .select("id, owner_id, slug, permanently_blocked")
       .eq("id", id)
       .single();
 
@@ -30,6 +30,14 @@ export const deletePluginAction = authActionClient
     if (existing.owner_id !== userId) {
       throw new ActionError(
         "You do not have permission to delete this plugin.",
+      );
+    }
+
+    // A blocked plugin stays on record, so the same one can't be deleted and
+    // submitted again.
+    if (existing.permanently_blocked) {
+      throw new ActionError(
+        "This plugin cannot be deleted. Contact support if you believe this is a mistake.",
       );
     }
 

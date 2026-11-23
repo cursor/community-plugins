@@ -3,11 +3,12 @@ import { cookies } from "next/headers";
 
 /**
  * Cookie-scoped Supabase client for server components, server actions, and
- * route handlers. Queries run as the logged-in user with RLS enforced.
+ * route handlers. It knows who is signed in, and is for that only: signing
+ * in and out, and reading the session.
  *
- * For privileged access that bypasses RLS, use
- * `@/utils/supabase/admin-client` instead — never mix the secret key with
- * cookie-based session auth.
+ * It can't read or write tables. The publishable key has no access to the
+ * database, so every query goes through `@/utils/supabase/admin-client`,
+ * which checks nothing itself: say whose row it is in the query.
  */
 export async function createClient() {
   const cookieStore = await cookies();

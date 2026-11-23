@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 
 // Postgres unique_violation. Raised when an insert/update collides with the
@@ -79,6 +79,7 @@ export const upsertCompanyAction = authActionClient
               public: is_public,
             })
             .eq("id", id)
+            .eq("owner_id", userId)
             .select("id, slug")
             .single();
 
