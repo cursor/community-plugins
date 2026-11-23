@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { AppAddLink } from "@/components/app-add-link";
 import { AppLogo } from "@/components/app-logo";
 import { AppRow } from "@/components/app-row";
-import { firstAppsPage, getApp } from "@/data/apps";
+import { getApp, relatedApps } from "@/data/apps";
 import {
   appCategoryLabel,
   appContents,
@@ -54,9 +54,7 @@ export default async function AppPage({ params }: Props) {
   const category = primaryAppCategory(app.categories);
   const publisher = creditedPublisher(app);
   // Three others in its category, the most added first.
-  const related = category
-    ? (await firstAppsPage({ limit: 3, category, exclude: app.id })).apps
-    : [];
+  const related = category ? await relatedApps(category, app.slug) : [];
   const contents = appContents(app.mcpServers.length, app.skills.length);
   // One message adding every server and skill; null unless all of them can
   // be added (a listed community app always can: see grok_bot_addable).
