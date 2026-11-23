@@ -2,7 +2,12 @@
 
 import { Check, ChevronsUpDown } from "lucide-react";
 import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  getCompanyNameAction,
+  getOwnCompaniesAction,
+  searchCompaniesAction,
+} from "@/actions/company-lookup";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -18,7 +23,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/utils/supabase/client";
 import { AddCompanyButton } from "./add-company-button";
 
 type Company = {
@@ -33,8 +37,6 @@ export function CompanySelect({
   value?: string;
   onChange: (value: string) => void;
 }) {
-  const supabase = useMemo(() => createClient(), []);
-
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Company | null>(null);
@@ -54,22 +56,11 @@ export function CompanySelect({
     let active = true;
 
     async function loadOwn() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const result = await getOwnCompaniesAction();
+      const companies = result?.data?.companies;
 
-      if (!session) {
-        return;
-      }
-
-      const { data } = await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("owner_id", session.user.id)
-        .order("created_at", { ascending: false });
-
-      if (active && data) {
-        setOwnCompanies(data);
+      if (active && companies) {
+        setOwnCompanies(companies);
       }
     }
 
@@ -82,7 +73,7 @@ export function CompanySelect({
     return () => {
       active = false;
     };
-  }, [reload, supabase, setQueryStates]);
+  }, [reload, setQueryStates]);
 
   // The "Add company" modal reports the chosen company (an existing match or a
   // freshly created one) via `pickedCompany`. Select it into this field.
@@ -114,26 +105,23 @@ export function CompanySelect({
       return;
     }
 
-    async function resolve() {
-      const { data } = await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("id", value)
-        .maybeSingle();
+    async function resolve(id: string) {
+      const result = await getCompanyNameAction({ id });
+      const company = result?.data?.company;
 
-      if (active && data) {
-        setSelected(data);
+      if (active && company) {
+        setSelected(company);
       }
     }
 
-    resolve();
+    resolve(value);
 
     return () => {
       active = false;
     };
-  }, [value, ownCompanies, results, supabase]);
+  }, [value, ownCompanies, results]);
 
-  // Debounced search across all companies by name (RLS allows public read).
+  // Debounced search across all companies by name.
   useEffect(() => {
     const term = query.trim();
 
@@ -148,15 +136,10 @@ export function CompanySelect({
     setLoading(true);
 
     const handle = setTimeout(async () => {
-      const { data } = await supabase
-        .from("companies")
-        .select("id, name")
-        .ilike("name", `%${term}%`)
-        .order("name", { ascending: true })
-        .limit(20);
+      const result = await searchCompaniesAction({ term, limit: 20 });
 
       if (active) {
-        setResults(data ?? []);
+        setResults(result?.data?.companies ?? []);
         setLoading(false);
       }
     }, 250);
@@ -165,7 +148,7 @@ export function CompanySelect({
       active = false;
       clearTimeout(handle);
     };
-  }, [query, supabase]);
+  }, [query]);
 
   const handleSelect = (company: Company) => {
     setSelected(company);

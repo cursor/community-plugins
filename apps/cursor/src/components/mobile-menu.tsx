@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { getViewerAction } from "@/actions/get-viewer";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { navigationLinks } from "./header";
@@ -32,13 +33,9 @@ export function MobileMenu() {
         return;
       }
 
-      const { data } = await supabase
-        .from("users")
-        .select("id, slug, name, image")
-        .eq("id", session.data.session?.user?.id)
-        .single();
+      const result = await getViewerAction();
 
-      setUser(data);
+      setUser(result?.data?.user ?? null);
     }
 
     if (!user) {

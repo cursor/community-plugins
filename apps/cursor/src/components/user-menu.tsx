@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { parseAsBoolean, useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
+import { getViewerAction } from "@/actions/get-viewer";
 import { createClient } from "@/utils/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -51,13 +52,9 @@ export function UserMenu() {
         return;
       }
 
-      const { data } = await supabase
-        .from("users")
-        .select("id, slug, name, image")
-        .eq("id", session.data.session?.user?.id)
-        .single();
+      const result = await getViewerAction();
 
-      setUser(data);
+      setUser(result?.data?.user ?? null);
       setIsLoading(false);
     }
 

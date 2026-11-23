@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
+import { setProfileImageAction } from "@/actions/set-profile-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { createClient } from "@/utils/supabase/client";
 
@@ -61,13 +62,15 @@ export function EditableAvatar({
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(path);
 
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ image: publicUrl })
-        .eq("id", userId);
+      const saved = await setProfileImageAction({
+        field: "image",
+        url: publicUrl,
+      });
 
-      if (updateError) {
-        throw updateError;
+      if (!saved?.data) {
+        throw new Error(
+          saved?.serverError ?? "Failed to upload profile image.",
+        );
       }
 
       toast.success("Profile image updated.");

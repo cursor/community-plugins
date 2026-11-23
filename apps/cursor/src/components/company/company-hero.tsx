@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
+import { setCompanyHeroAction } from "@/actions/set-company-hero";
 import { createClient } from "@/utils/supabase/client";
 
 export function CompanyHero({
@@ -59,13 +60,13 @@ export function CompanyHero({
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(path);
 
-      const { error: updateError } = await supabase
-        .from("companies")
-        .update({ hero: publicUrl })
-        .eq("id", companyId);
+      const saved = await setCompanyHeroAction({
+        companyId,
+        url: publicUrl,
+      });
 
-      if (updateError) {
-        throw updateError;
+      if (!saved?.data) {
+        throw new Error(saved?.serverError ?? "Failed to upload cover image.");
       }
 
       toast.success("Cover image updated.");

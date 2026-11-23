@@ -7,6 +7,10 @@ import { parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import {
+  type CompanySearchResult,
+  searchCompaniesAction,
+} from "@/actions/company-lookup";
 import { upsertCompanyAction } from "@/actions/upsert-company";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,10 +25,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  type CompanySearchResult,
-  searchCompanies,
-} from "@/data/client-queries";
 import UploadLogo from "../upload-logo";
 
 const formSchema = z.object({
@@ -139,9 +139,9 @@ export function CompanyForm({
 
     let active = true;
     const handle = setTimeout(async () => {
-      const results = await searchCompanies(term, 5);
+      const result = await searchCompaniesAction({ term, limit: 5 });
       if (active) {
-        setSuggestions(results);
+        setSuggestions(result?.data?.companies ?? []);
       }
     }, 200);
 

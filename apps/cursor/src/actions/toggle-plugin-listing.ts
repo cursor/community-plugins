@@ -2,7 +2,7 @@
 
 import { updateTag } from "next/cache";
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/admin-client";
 import { ActionError, authActionClient } from "./safe-action";
 
 export const togglePluginListingAction = authActionClient
@@ -20,7 +20,7 @@ export const togglePluginListingAction = authActionClient
 
     const { data: existing, error: fetchError } = await supabase
       .from("plugins")
-      .select("id, owner_id, slug, permanently_blocked")
+      .select("id, owner_id, slug, permanently_blocked, scan_status")
       .eq("id", id)
       .single();
 
@@ -37,6 +37,14 @@ export const togglePluginListingAction = authActionClient
     if (active && existing.permanently_blocked) {
       throw new ActionError(
         "This plugin cannot be published. Contact support if you believe this is a mistake.",
+      );
+    }
+
+    // Only a plugin the security scan has passed goes live: publishing must
+    // not skip review. One that was never scanned is scanned when it's edited.
+    if (active && existing.scan_status !== "safe") {
+      throw new ActionError(
+        "This plugin can't be published until it has passed review.",
       );
     }
 

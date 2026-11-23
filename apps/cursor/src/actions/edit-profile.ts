@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/admin-client";
 import { authActionClient } from "./safe-action";
 
 export const editProfileAction = authActionClient
