@@ -195,7 +195,7 @@ export function CompanyForm({
           <div className="space-y-6">
             <UploadLogo
               onUpload={handleImageUpload}
-              prefix={`company/${id}`}
+              target={{ kind: "company-logo", companyId: id }}
               image={data?.image}
             />
 

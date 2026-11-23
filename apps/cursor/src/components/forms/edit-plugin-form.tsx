@@ -93,7 +93,11 @@ export function EditPluginForm({ data }: { data: PluginRow }) {
               (optional)
             </span>
           </span>
-          <UploadLogo prefix="plugins" onUpload={setLogo} image={logo} />
+          <UploadLogo
+            target={{ kind: "plugin-logo" }}
+            onUpload={setLogo}
+            image={logo}
+          />
         </div>
         <div>
           <label

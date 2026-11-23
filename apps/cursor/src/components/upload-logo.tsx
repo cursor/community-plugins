@@ -3,17 +3,18 @@
 import { PlusIcon } from "lucide-react";
 import Image from "next/image";
 import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import type { UploadTarget } from "@/actions/create-upload-url";
+import { uploadImage } from "@/utils/upload-image";
 
 interface UploadLogoProps {
   onUpload?: (url: string) => void;
-  prefix: string;
+  target: UploadTarget;
   image?: string | null;
 }
 
 export default function UploadLogo({
   onUpload,
-  prefix,
+  target,
   image,
 }: UploadLogoProps) {
   const [preview, setPreview] = useState<string | null>(image ?? null);
@@ -38,30 +39,7 @@ export default function UploadLogo({
       };
       reader.readAsDataURL(file);
 
-      // Upload to Supabase Storage
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      const { error } = await supabase.storage
-        .from("avatars")
-        .upload(`${prefix}/${fileName}`, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) {
-        throw error;
-      }
-
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(`${prefix}/${fileName}`);
-
-      onUpload?.(publicUrl);
+      onUpload?.(await uploadImage(file, target));
     } catch (error) {
       console.error("Error uploading file:", error);
     }
