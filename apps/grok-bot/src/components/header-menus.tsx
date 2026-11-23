@@ -152,6 +152,9 @@ export function UserMenu({
         <Link href="/my-bots" role="menuitem" style={nth(place++)}>
           Your submissions
         </Link>
+        <Link href="/whats-new" role="menuitem" style={nth(place++)}>
+          What’s new
+        </Link>
         {admin && (
           <Link href="/admin" role="menuitem" style={nth(place++)}>
             Admin
@@ -235,6 +238,7 @@ export function MobileMenu({
           ) : (
             pathname !== "/login" && <Link href="/login">Sign in</Link>
           )}
+          {viewer && <Link href="/whats-new">What’s new</Link>}
           {admin && <Link href="/admin">Admin</Link>}
           {viewer && (
             <div className="mobile-who" data-testid="mobile-who">

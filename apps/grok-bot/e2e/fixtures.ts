@@ -1,6 +1,7 @@
 import { refreshGrokBotAddable } from "@directories/plugins/grok-bot-add";
 import { expect, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { SEEN_KEY, UPDATES } from "../src/lib/whats-new";
 import { loadEnv } from "./env";
 
 loadEnv();
@@ -498,7 +499,18 @@ const pick = (f: { slug: string; name: string; description: string }) => ({
 });
 
 /** Signs in through the local dev login and lands on `next`. */
-export async function signIn(page: Page, next = "/") {
+export async function signIn(
+  page: Page,
+  next = "/",
+  // The What's new card sits over a corner of the page; tests that aren't
+  // about it sign in as a member who has already seen every update.
+  { whatsNew = false }: { whatsNew?: boolean } = {},
+) {
+  if (!whatsNew)
+    await page.addInitScript(
+      ([key, id]) => window.localStorage.setItem(key, id),
+      [SEEN_KEY, UPDATES[0].id],
+    );
   await page.goto(`/login?next=${encodeURIComponent(next)}`);
   await page.getByRole("button", { name: "Local dev sign-in" }).click();
   await page.waitForURL((url) => url.pathname === next.split("?")[0]);

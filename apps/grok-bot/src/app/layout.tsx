@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { THEME_SCRIPT } from "@/components/theme";
+import { WhatsNew } from "@/components/whats-new";
 import { getViewer } from "@/lib/auth";
 import "./globals.css";
 
@@ -62,6 +63,7 @@ export default async function RootLayout({
         <Header viewer={viewer} />
         <main style={{ minHeight: "100vh" }}>{children}</main>
         <Footer />
+        {viewer && <WhatsNew />}
         <Analytics />
       </body>
     </html>
