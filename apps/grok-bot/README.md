@@ -135,6 +135,13 @@ plugin submitted on either site appears on both.
   `grok-bot-directory-owner=<member id>`. The line isn't a secret: what
   counts is where it's published. A claim only fills an empty owner and is
   recorded in `plugin_moderation_events` (`owner_claim`).
+- **A listing that seems to be missing:** an account is the sign-in that
+  made it. GitHub and Google meet on a shared email address, but X gives
+  none, so someone who submitted with GitHub and returns with X has a new,
+  empty account. Your submissions ends with a note saying which sign-ins the
+  account has (`src/lib/sign-in-providers.ts`), offering the others ("Switch
+  sign-in" signs out and opens the sign-in page), and pointing makers of
+  imported apps to Claim.
 - **Moderation** happens on either site: the Grok Bot Directory's `/admin`
   has an Apps side (review queue of flagged, failed, stuck and scanning
   plugins; Listed community apps; Removed) next to Bots. Both sites call the

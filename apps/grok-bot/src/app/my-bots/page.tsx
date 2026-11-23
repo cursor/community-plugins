@@ -22,6 +22,7 @@ import { requireViewer } from "@/lib/auth";
 import { categoryLabel } from "@/lib/categories";
 import { formatRelativeDate } from "@/lib/format";
 import { shareUrl } from "@/lib/share-link";
+import { listed, otherProviders, type Provider } from "@/lib/sign-in-providers";
 
 export const metadata: Metadata = { title: "Your submissions" };
 export const dynamic = "force-dynamic";
@@ -169,7 +170,50 @@ export default async function MyBotsPage({ searchParams }: Props) {
           )}
         </div>
       )}
+      <MissingListing signIns={viewer.signIns} />
     </div>
+  );
+}
+
+/**
+ * Why something a member made might not be in their list: it was submitted
+ * with another sign-in, which is another account, or it was added to the
+ * directory for them and has no owner yet.
+ */
+function MissingListing({ signIns }: { signIns: Provider[] }) {
+  const others = otherProviders(signIns, {
+    xSignIn: process.env.GROK_BOT_X_SIGN_IN === "1",
+  });
+  return (
+    <aside className="subs-missing" data-testid="missing-listing">
+      <h2>Don’t see a listing you expected?</h2>
+      <ul>
+        {others.length > 0 && (
+          <li data-testid="other-sign-in">
+            <p>
+              Listings stay with the sign-in that submitted them.
+              {signIns.length > 0 &&
+                ` This account signs in with ${listed(signIns, "and")}.`}{" "}
+              If you submitted with {listed(others, "or")}, switch to that
+              sign-in.
+            </p>
+            <form action="/auth/sign-out" method="post">
+              <input type="hidden" name="next" value="/login?next=/my-bots" />
+              <button type="submit" className="btn btn-gray btn-sm">
+                Switch sign-in
+              </button>
+            </form>
+          </li>
+        )}
+        <li>
+          <p>
+            If your app was added to the directory for you, it has no owner yet.
+            Find it under <Link href="/?tab=apps">Apps</Link> and choose “Claim
+            it” on its page.
+          </p>
+        </li>
+      </ul>
+    </aside>
   );
 }
 
