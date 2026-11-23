@@ -5,6 +5,7 @@ import { CardBot, SceneBot } from "@/components/bot-art";
 import { CopyLink } from "@/components/copy-link";
 import {
   CreditChoice,
+  RefreshApp,
   RefreshBot,
   RemoveBot,
 } from "@/components/my-submission-controls";
@@ -314,6 +315,22 @@ function AppSubmissionCard({
             <Link className="btn btn-gray btn-sm" href={`/apps/${app.slug}`}>
               View listing
             </Link>
+          )}
+          {app.status === "listed" && (
+            <Link
+              className="btn btn-gray btn-sm"
+              href={`/apps/${app.slug}/edit`}
+              data-testid="edit-app"
+            >
+              Edit
+            </Link>
+          )}
+          {app.source && (
+            <RefreshApp
+              appId={app.id}
+              source={app.source}
+              listed={app.status === "listed"}
+            />
           )}
         </div>
       </div>

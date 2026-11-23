@@ -1626,6 +1626,35 @@ img {
   font-size: 13px;
   color: var(--muted);
 }
+/* An app's edit form: Save beside Cancel, and the fields its repository
+   decides shown but dimmed. */
+.edit-form .edit-preview {
+  height: auto;
+}
+.edit-form .edit-actions {
+  display: flex;
+  gap: 8px;
+}
+.edit-save {
+  flex: 1;
+}
+.edit-save:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.edit-form .field input:disabled,
+.edit-form .field textarea:disabled {
+  color: var(--muted);
+}
+.edit-form .field .hint a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.edit-form .field .hint code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
 /* The empty, loading and filled cards share one fixed height (a title, four
    description lines and the byline; six lines on phones), so switching
    between them never moves the page. Longer text is clipped. */

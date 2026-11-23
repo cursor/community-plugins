@@ -106,6 +106,18 @@ plugin submitted on either site appears on both.
   that SKILL.md from the stored copy the security scan reviewed, not the
   repository's current state. Apps whose message can't be built (an unreadable
   server config, or over 1,000 characters) show no Add button.
+- **Owners keep a listing up to date** from Your submissions
+  (`src/lib/app-owner.ts`). A listing is a copy of its source, made when the
+  app was submitted. **Refresh** reads the source again: a repository's
+  plugin (found by GitHub's id for the repository, so a rename or a move to
+  another owner is followed), or what a remote server reports. **Edit**
+  (`/apps/<slug>/edit`) changes the logo and website of any app, and the name
+  and description of a server; a repository's name and description come from
+  the repository. A change to the name, the description or what the app is
+  made of hides it and queues the security scan again; a new logo or website
+  shows at once. Only listed apps can be changed, each change is recorded in
+  `plugin_moderation_events` (`owner_edit`, `owner_refresh`), and the address
+  never changes.
 - **Moderation** happens on either site: the Grok Bot Directory's `/admin`
   has an Apps side (review queue of flagged, failed, stuck and scanning
   plugins; Listed community apps; Removed) next to Bots. Both sites call the

@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   creditMyBots,
+  refreshMyApp,
   refreshMyBot,
   removeMyBot,
 } from "@/actions/my-submissions";
+import type { RefreshAppOutcome } from "@/lib/app-owner";
 import type { RefreshOutcome } from "@/lib/refresh-bot";
 
 /**
@@ -123,6 +125,89 @@ export function RefreshBot({ botId }: { botId: string }) {
       >
         {busy ? "Refreshing…" : "Refresh"}
       </button>
+      {note && (
+        <span className="sub-result" role="status" data-testid="refresh-result">
+          {note}
+        </span>
+      )}
+    </>
+  );
+}
+
+// What the member is told after refreshing an app. "updated" and "checking"
+// change the card, so the page is reloaded to show it.
+const APP_REFRESHED: Record<RefreshAppOutcome, string> = {
+  unchanged: "Already up to date.",
+  updated: "Updated.",
+  checking:
+    "Updated. It’s back in review while the security check runs, usually a few minutes.",
+  not_listed: "This app isn’t listed any more.",
+  no_source: "There’s nothing to read this listing from again.",
+  unreadable:
+    "We couldn’t read the repository. Check that it exists and is public.",
+  not_usable:
+    "The repository no longer has anything Grok Bot can add, so the listing was left as it is.",
+  github_busy:
+    "GitHub is rate-limiting us right now. Try again in a few minutes.",
+  unreachable:
+    "Couldn’t connect to the server. Check that it’s online, then try again.",
+  not_mcp: "The server’s address no longer answers as an MCP server.",
+  name_taken:
+    "Its new name is already used by another listing, so nothing was changed.",
+  rate_limited: "You’ve made a lot of changes recently. Try again later.",
+};
+
+/**
+ * "Refresh" on one of the member's own apps: reads its repository or its
+ * server again and brings the listing up to date. The button shows while the
+ * app is listed; what the refresh found stays after it, since a refresh that
+ * changed the app sends it back to review.
+ */
+export function RefreshApp({
+  appId,
+  source,
+  listed,
+}: {
+  appId: string;
+  source: "repo" | "server";
+  listed: boolean;
+}) {
+  const router = useRouter();
+  const [busy, start] = useTransition();
+  const [note, setNote] = useState<string | null>(null);
+  return (
+    <>
+      {listed && (
+        <button
+          type="button"
+          className="btn btn-gray btn-sm"
+          data-testid="refresh-app"
+          title={
+            source === "repo"
+              ? "Update this listing from its GitHub repository"
+              : "Update this listing from what its server reports"
+          }
+          disabled={busy}
+          onClick={() =>
+            start(async () => {
+              setNote(null);
+              const result = await refreshMyApp(appId).catch(() => null);
+              setNote(
+                result?.ok
+                  ? APP_REFRESHED[result.outcome]
+                  : "That didn’t work. Try again.",
+              );
+              if (
+                result?.ok &&
+                (result.outcome === "updated" || result.outcome === "checking")
+              )
+                router.refresh();
+            })
+          }
+        >
+          {busy ? "Refreshing…" : "Refresh"}
+        </button>
+      )}
       {note && (
         <span className="sub-result" role="status" data-testid="refresh-result">
           {note}

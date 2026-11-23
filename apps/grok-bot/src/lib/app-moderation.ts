@@ -37,18 +37,25 @@ async function refreshCursorDirectory(slug: string) {
   }
 }
 
+/**
+ * An app was changed: drops what's cached about apps here and tells
+ * cursor.directory, which lists the same plugin.
+ */
+export async function appChanged(slug: string) {
+  expireListings("apps");
+  revalidatePath("/admin");
+  revalidatePath("/my-bots");
+  revalidatePath("/");
+  revalidatePath(`/apps/${slug}`);
+  await refreshCursorDirectory(slug);
+}
+
 /** The Grok Bot Directory's context for the shared moderation operations. */
 export function appModerationContext(actorId: string): ModerationContext {
   return {
     actorId,
     source: "web",
     db: createAdminClient,
-    invalidate: async (slug) => {
-      expireListings("apps");
-      revalidatePath("/admin");
-      revalidatePath("/");
-      revalidatePath(`/apps/${slug}`);
-      await refreshCursorDirectory(slug);
-    },
+    invalidate: appChanged,
   };
 }

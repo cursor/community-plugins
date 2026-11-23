@@ -3,6 +3,7 @@ import "server-only";
 import { appCategories, worksInGrokBot } from "@directories/plugins/apps";
 import { type McpSetup, parseMcpSetup } from "@directories/plugins/mcp-config";
 import { cache } from "react";
+import { type AppSource, appSource } from "@/lib/app-source";
 import { cached } from "@/lib/data-cache";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { allRows } from "@/utils/supabase/all-rows";
@@ -328,6 +329,8 @@ export type AppSubmission = {
   checking: boolean;
   mcpServers: number;
   skills: number;
+  /** What Refresh reads again; null when there's nothing to read. */
+  source: AppSource["kind"] | null;
 };
 
 function appStatus(p: {
@@ -361,13 +364,17 @@ export async function listAppsByOwner(
     scan_status: string;
     permanently_blocked: boolean;
     unavailable_in: string[] | null;
-    plugin_components: { type: string }[] | null;
+    repository: string | null;
+    marketplace_plugin_id: string | null;
+    plugin_components:
+      | { type: string; metadata: Record<string, unknown> | null }[]
+      | null;
   };
   const rows = await allRows<OwnedRow>((from, to) =>
     admin
       .from("plugins")
       .select(
-        "id, slug, name, description, logo, created_at, active, scan_status, permanently_blocked, unavailable_in, plugin_components(type)",
+        "id, slug, name, description, logo, created_at, active, scan_status, permanently_blocked, unavailable_in, repository, marketplace_plugin_id, plugin_components(type, metadata)",
         { count: "exact" },
       )
       .eq("owner_id", ownerId)
@@ -376,9 +383,8 @@ export async function listAppsByOwner(
       .range(from, to),
   );
   return rows.flatMap((p) => {
-    const types = (p.plugin_components ?? []).map(
-      (c: { type: string }) => c.type,
-    );
+    const components = p.plugin_components ?? [];
+    const types = components.map((c) => c.type);
     if ((p.unavailable_in ?? []).includes("grok_bot") || !worksInGrokBot(types))
       return [];
     return [
@@ -393,7 +399,68 @@ export async function listAppsByOwner(
         checking: p.scan_status === "pending" || p.scan_status === "scanning",
         mcpServers: types.filter((t: string) => t === "mcp_server").length,
         skills: types.filter((t: string) => t === "skill").length,
+        source:
+          appSource({
+            repository: p.repository,
+            marketplace_plugin_id: p.marketplace_plugin_id,
+            components,
+          })?.kind ?? null,
       },
     ];
   });
+}
+
+/** One of a member's listed apps, as its edit page needs it. */
+export type OwnApp = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  logo: string | null;
+  homepage: string | null;
+  repository: string | null;
+  source: AppSource["kind"] | null;
+};
+
+/**
+ * The member's own app at this address, if it's listed: only a listed app
+ * can be edited, since one in review is waiting on the scan.
+ */
+export async function getOwnListedApp(
+  slug: string,
+  ownerId: string,
+): Promise<OwnApp | null> {
+  const admin = await createAdminClient();
+  const { data, error } = await admin
+    .from("plugins")
+    .select(
+      "id, slug, name, description, logo, homepage, repository, marketplace_plugin_id, plugin_components(type, metadata)",
+    )
+    .eq("slug", slug)
+    .eq("owner_id", ownerId)
+    .eq("active", true)
+    .eq("permanently_blocked", false)
+    .eq("grok_bot_addable", true)
+    .not("unavailable_in", "cs", "{grok_bot}")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    id: data.id,
+    slug: data.slug,
+    name: data.name,
+    description: data.description ?? "",
+    logo: data.logo,
+    homepage: data.homepage,
+    repository: data.repository,
+    source:
+      appSource({
+        repository: data.repository,
+        marketplace_plugin_id: data.marketplace_plugin_id,
+        components: (data.plugin_components ?? []) as {
+          type: string;
+          metadata: Record<string, unknown> | null;
+        }[],
+      })?.kind ?? null,
+  };
 }

@@ -2,6 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  type EditAppInput,
+  type EditAppOutcome,
+  editApp,
+  type RefreshAppOutcome,
+  refreshApp,
+} from "@/lib/app-owner";
 import { getViewer } from "@/lib/auth";
 import { CREDIT_CHANGED, cardAuthor } from "@/lib/credit";
 import { expireListings } from "@/lib/data-cache";
@@ -10,7 +17,8 @@ import { type RefreshOutcome, refreshBot } from "@/lib/refresh-bot";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 // What a member can do to their own submissions without an admin: take a bot
-// out of the directory, and choose the name their bots are credited to.
+// out of the directory, bring a bot or an app up to date with its source,
+// edit an app's details, and choose the name their bots are credited to.
 
 export type MineResult =
   | { ok: true; changed: number }
@@ -100,6 +108,38 @@ export async function refreshMyBot(botId: string): Promise<RefreshResult> {
     .maybeSingle();
   if (!own) return { ok: false, error: "not_found" };
   return { ok: true, outcome: await refreshBot(botId, { id: viewer.id }) };
+}
+
+export type RefreshAppResult =
+  | { ok: true; outcome: RefreshAppOutcome }
+  | { ok: false; error: "signed_out" | "invalid" };
+
+/**
+ * Reads one of the member's own listed apps from its repository or server
+ * again. See refreshApp for what each outcome means.
+ */
+export async function refreshMyApp(appId: string): Promise<RefreshAppResult> {
+  const viewer = await getViewer();
+  if (!viewer) return { ok: false, error: "signed_out" };
+  if (!z.string().uuid().safeParse(appId).success)
+    return { ok: false, error: "invalid" };
+  return { ok: true, outcome: await refreshApp(appId, viewer.id) };
+}
+
+export type EditAppResult =
+  | { ok: true; outcome: EditAppOutcome }
+  | { ok: false; error: "signed_out" | "invalid" };
+
+/** Saves the member's changes to one of their own listed apps (see editApp). */
+export async function editMyApp(
+  appId: string,
+  input: EditAppInput,
+): Promise<EditAppResult> {
+  const viewer = await getViewer();
+  if (!viewer) return { ok: false, error: "signed_out" };
+  if (!z.string().uuid().safeParse(appId).success)
+    return { ok: false, error: "invalid" };
+  return { ok: true, outcome: await editApp(appId, viewer.id, input) };
 }
 
 type OwnBot = {

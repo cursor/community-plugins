@@ -320,6 +320,39 @@ export async function fetchGitHubRepoMeta(
   }
 }
 
+/**
+ * Where a repository lives now, from GitHub's numeric id for it: the id stays
+ * the same when a repository is renamed or moved to another owner, and its
+ * old address stops serving files. "gone" when GitHub has no such repository
+ * (deleted or made private); null when GitHub couldn't be asked.
+ */
+export async function githubRepoUrlById(
+  id: number,
+  opts: FetchOptions = {},
+): Promise<string | "gone" | null> {
+  try {
+    const res = await fetchWithRateLimit(
+      `https://api.github.com/repositories/${id}`,
+      {
+        cache: "no-store",
+        headers: {
+          Accept: "application/vnd.github.v3+json",
+          ...githubAuthHeaders(),
+        },
+        maxWaitMs: opts.maxWaitMs,
+      },
+    );
+    if (res.status === 404) return "gone";
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.full_name === "string"
+      ? `https://github.com/${data.full_name}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 const DISPLAY_NAME_MAX = 80;
 
 /**
