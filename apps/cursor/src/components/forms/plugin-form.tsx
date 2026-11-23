@@ -288,7 +288,7 @@ export function PluginForm() {
                       </span>
                     </span>
                     <UploadLogo
-                      prefix="plugins"
+                      target={{ kind: "plugin-logo" }}
                       onUpload={setAutoLogo}
                       image={autoLogo ?? parsed.logo}
                     />
@@ -410,7 +410,7 @@ export function PluginForm() {
                   </span>
                 </span>
                 <UploadLogo
-                  prefix="plugins"
+                  target={{ kind: "plugin-logo" }}
                   onUpload={setManualLogo}
                   image={manualLogo}
                 />

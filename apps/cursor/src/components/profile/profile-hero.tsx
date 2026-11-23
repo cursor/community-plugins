@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { setProfileImageAction } from "@/actions/set-profile-image";
-import { createClient } from "@/utils/supabase/client";
+import { uploadImage } from "@/utils/upload-image";
 
 export function ProfileHero({
   userId,
@@ -41,25 +41,7 @@ export function ProfileHero({
     setIsUploading(true);
 
     try {
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const path = `${userId}/hero/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = await uploadImage(file, { kind: "cover" });
 
       const saved = await setProfileImageAction({
         field: "hero",

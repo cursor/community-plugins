@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { setCompanyHeroAction } from "@/actions/set-company-hero";
-import { createClient } from "@/utils/supabase/client";
+import { uploadImage } from "@/utils/upload-image";
 
 export function CompanyHero({
   companyId,
@@ -40,25 +40,10 @@ export function CompanyHero({
     setIsUploading(true);
 
     try {
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const path = `${companyId}/hero/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = await uploadImage(file, {
+        kind: "company-cover",
+        companyId,
+      });
 
       const saved = await setCompanyHeroAction({
         companyId,

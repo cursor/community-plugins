@@ -92,7 +92,7 @@ export function EditMCPForm({ data }: { data: MCPData }) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-6 pb-6">
           <UploadLogo
-            prefix="mcp"
+            target={{ kind: "mcp-logo" }}
             onUpload={setLogo}
             image={form.watch("logo")}
           />

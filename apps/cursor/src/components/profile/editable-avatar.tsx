@@ -5,7 +5,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 import { setProfileImageAction } from "@/actions/set-profile-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { createClient } from "@/utils/supabase/client";
+import { uploadImage } from "@/utils/upload-image";
 
 export function EditableAvatar({
   userId,
@@ -42,25 +42,7 @@ export function EditableAvatar({
     setIsUploading(true);
 
     try {
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const path = `${userId}/avatar/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = await uploadImage(file, { kind: "avatar" });
 
       const saved = await setProfileImageAction({
         field: "image",
