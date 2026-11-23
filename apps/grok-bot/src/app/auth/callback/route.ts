@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { claimOwnGitHubApps } from "@/lib/app-claim";
 import { parseSignInMethod, rememberSignIn } from "@/lib/last-sign-in";
 import { safeNextPath } from "@/lib/safe-next";
 import { saveXProfile } from "@/lib/x-profile";
@@ -18,6 +19,8 @@ export async function GET(request: Request) {
     if (!error) {
       // Best effort; a failure here shouldn't block signing in.
       if (via === "x") await saveXProfile(data.user).catch(() => {});
+      // The unowned apps in their own GitHub repositories are theirs.
+      if (via === "github") await claimOwnGitHubApps(data.user).catch(() => {});
       const forwardedHost = request.headers.get("x-forwarded-host");
       const response =
         process.env.NODE_ENV !== "development" && forwardedHost

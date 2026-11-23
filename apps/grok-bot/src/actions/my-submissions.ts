@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { type ClaimOutcome, claimApp } from "@/lib/app-claim";
 import {
   type EditAppInput,
   type EditAppOutcome,
@@ -13,12 +14,14 @@ import { getViewer } from "@/lib/auth";
 import { CREDIT_CHANGED, cardAuthor } from "@/lib/credit";
 import { expireListings } from "@/lib/data-cache";
 import { getPublicTemplate } from "@/lib/grok-bot-api";
+import { submitLimit } from "@/lib/rate-limit";
 import { type RefreshOutcome, refreshBot } from "@/lib/refresh-bot";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 
 // What a member can do to their own submissions without an admin: take a bot
 // out of the directory, bring a bot or an app up to date with its source,
-// edit an app's details, and choose the name their bots are credited to.
+// edit an app's details, claim an app nobody owns, and choose the name their
+// bots are credited to.
 
 export type MineResult =
   | { ok: true; changed: number }
@@ -140,6 +143,28 @@ export async function editMyApp(
   if (!z.string().uuid().safeParse(appId).success)
     return { ok: false, error: "invalid" };
   return { ok: true, outcome: await editApp(appId, viewer.id, input) };
+}
+
+export type ClaimAppResult =
+  | { ok: true; outcome: ClaimOutcome }
+  | { ok: false; error: "signed_out" | "invalid" | "rate_limited" };
+
+/**
+ * Claims an app nobody owns for the member, when their GitHub account owns
+ * its repository or its maker has published a file naming them (see
+ * claimApp). Each try reads GitHub or the app's host, so tries are limited.
+ */
+export async function claimMyApp(appId: string): Promise<ClaimAppResult> {
+  const viewer = await getViewer();
+  if (!viewer) return { ok: false, error: "signed_out" };
+  if (!z.string().uuid().safeParse(appId).success)
+    return { ok: false, error: "invalid" };
+  if (!(await submitLimit(viewer.id)).success)
+    return { ok: false, error: "rate_limited" };
+  return {
+    ok: true,
+    outcome: await claimApp(appId, { id: viewer.id, github: viewer.github }),
+  };
 }
 
 type OwnBot = {

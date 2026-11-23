@@ -118,6 +118,17 @@ plugin submitted on either site appears on both.
   shows at once. Only listed apps can be changed, each change is recorded in
   `plugin_moderation_events` (`owner_edit`, `owner_refresh`), and the address
   never changes.
+- **Claiming:** apps imported in bulk have no owner, so nobody can edit
+  them. An unowned community app's page links to `/apps/<slug>/claim`, where
+  its maker proves it's theirs (`src/lib/app-claim-proof.ts`): their GitHub
+  account owns the repository (a person's own repository only, matched by
+  GitHub's id for the account; also done automatically at a GitHub sign-in),
+  or a file names them: `grok-bot-directory.txt` in the repository's root,
+  or at `/.well-known/grok-bot-directory.txt` on the server's host (or on
+  the listing's website, when the server sits under it), holding the line
+  `grok-bot-directory-owner=<member id>`. The line isn't a secret: what
+  counts is where it's published. A claim only fills an empty owner and is
+  recorded in `plugin_moderation_events` (`owner_claim`).
 - **Moderation** happens on either site: the Grok Bot Directory's `/admin`
   has an Apps side (review queue of flagged, failed, stuck and scanning
   plugins; Listed community apps; Removed) next to Bots. Both sites call the

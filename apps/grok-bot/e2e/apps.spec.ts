@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { APP_FIXTURES, db, seedFixtures, signIn } from "./fixtures";
+import { APP_FIXTURES, db, devUserId, seedFixtures, signIn } from "./fixtures";
 
 test.describe("apps", () => {
   test.beforeAll(seedFixtures);
@@ -501,6 +501,87 @@ test.describe("apps", () => {
       .eq("slug", APP_FIXTURES.server.slug)
       .single();
     expect(data).toEqual({ active: true, scan_status: "safe" });
+  });
+
+  test("an app nobody owns says how its maker claims it with a file", async ({
+    page,
+  }) => {
+    const app = APP_FIXTURES.unowned;
+    await signIn(page, `/apps/${app.slug}`);
+    await page.getByTestId("claim-app").getByRole("link").click();
+    await expect(page).toHaveURL(`/apps/${app.slug}/claim`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      `Claim ${app.name}`,
+    );
+    // A server has no repository, so there's no GitHub account to match.
+    await expect(page.getByTestId("claim-github")).toHaveCount(0);
+    // The file goes on the server's host or the website it sits under, and
+    // names the member who is signed in.
+    const file = page.getByTestId("claim-file");
+    await expect(file.locator(".claim-addresses li")).toHaveText([
+      "https://mcp.zephyr.test/.well-known/grok-bot-directory.txt",
+      "https://www.zephyr.test/.well-known/grok-bot-directory.txt",
+    ]);
+    await expect(page.getByTestId("claim-line")).toHaveText(
+      `grok-bot-directory-owner=${await devUserId()}`,
+    );
+    // Neither address exists, so nothing changes hands.
+    await file.getByRole("button", { name: "Check for the file" }).click();
+    await expect(page.getByTestId("claim-result")).toContainText(
+      "We didn’t find that line there",
+      { timeout: 30_000 },
+    );
+    const { data } = await db()
+      .from("plugins")
+      .select("owner_id")
+      .eq("slug", app.slug)
+      .single();
+    expect(data?.owner_id).toBeNull();
+  });
+
+  test("a repository's app can also be claimed by the GitHub account it is under", async ({
+    page,
+  }) => {
+    await signIn(page, `/apps/${APP_FIXTURES.unownedRepo.slug}/claim`);
+    // The local dev account didn't sign in with GitHub.
+    const github = page.getByTestId("claim-github");
+    await expect(github).toContainText("github.com/zephyr-labs-e2e");
+    await expect(github).toContainText("You aren’t signed in with GitHub");
+    await expect(github.getByRole("button")).toHaveCount(0);
+    const file = page.getByTestId("claim-file");
+    await expect(file).toContainText("grok-bot-directory.txt");
+    await expect(
+      file.getByRole("link", { name: "the repository" }),
+    ).toHaveAttribute("href", APP_FIXTURES.unownedRepo.repository);
+  });
+
+  test("only an app nobody owns, with a source to check, can be claimed", async ({
+    page,
+  }) => {
+    // Signed out, the claim page asks for a sign-in first.
+    await page.goto(`/apps/${APP_FIXTURES.unowned.slug}/claim`);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    await signIn(page, "/my-bots");
+    // An app with an owner, an official one, and an older listing that is
+    // only a link don't offer it.
+    for (const app of [
+      APP_FIXTURES.community,
+      APP_FIXTURES.official,
+      APP_FIXTURES.legacy,
+    ]) {
+      await page.goto(`/apps/${app.slug}`);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(
+        app.name,
+      );
+      await expect(page.getByTestId("claim-app")).toHaveCount(0);
+    }
+    for (const app of [APP_FIXTURES.official, APP_FIXTURES.legacy]) {
+      const res = await page.goto(`/apps/${app.slug}/claim`);
+      expect(res?.status()).toBe(404);
+    }
+    // The member's own app is already under Your submissions.
+    await page.goto(`/apps/${APP_FIXTURES.community.slug}/claim`);
+    await expect(page).toHaveURL("/my-bots");
   });
 
   test("the app form only accepts a URL that answers as an MCP server", async ({

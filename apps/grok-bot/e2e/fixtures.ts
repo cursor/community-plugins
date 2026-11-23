@@ -148,6 +148,21 @@ export const APP_FIXTURES = {
     description: "A community app read from a GitHub repository.",
     repository: "https://github.com/zephyr-labs-e2e/zephyr-app",
   },
+  // Listed with no owner, as a bulk import leaves them: their makers can
+  // claim them.
+  unowned: {
+    slug: "e2e-app-unowned",
+    name: "Zephyr App Unowned",
+    description: "An imported app that is one remote MCP server.",
+    serverUrl: "https://mcp.zephyr.test/unowned",
+    homepage: "https://www.zephyr.test",
+  },
+  unownedRepo: {
+    slug: "e2e-app-unowned-repo",
+    name: "Zephyr App Unowned Repo",
+    description: "An imported app read from a GitHub repository.",
+    repository: "https://github.com/zephyr-labs-e2e/unowned-app",
+  },
   // None of these is an app: one only runs in Cursor, one is marked as not
   // working in Grok Bot, and one has a server Grok Bot couldn't add as
   // written (its command runs a file on the submitter's own disk).
@@ -222,6 +237,14 @@ async function seedApps(owner: string) {
         owner_id: owner,
         discovery_source: "user",
         repository: APP_FIXTURES.repo.repository,
+      }),
+      plugin(APP_FIXTURES.unowned, {
+        discovery_source: "import:marketplace-submissions",
+        homepage: APP_FIXTURES.unowned.homepage,
+      }),
+      plugin(APP_FIXTURES.unownedRepo, {
+        discovery_source: "import:marketplace-submissions",
+        repository: APP_FIXTURES.unownedRepo.repository,
       }),
       plugin(APP_FIXTURES.flagged, {
         owner_id: owner,
@@ -313,6 +336,19 @@ async function seedApps(owner: string) {
           APP_FIXTURES.repo.slug,
           "zephyr-repo",
           JSON.stringify({ url: "https://mcp.zephyr.test/repo" }),
+        ),
+        {
+          ...server(
+            APP_FIXTURES.unowned.slug,
+            "zephyr-unowned",
+            JSON.stringify({ url: APP_FIXTURES.unowned.serverUrl }),
+          ),
+          metadata: { url: APP_FIXTURES.unowned.serverUrl, auth: "none" },
+        },
+        server(
+          APP_FIXTURES.unownedRepo.slug,
+          "zephyr-unowned-repo",
+          JSON.stringify({ url: "https://mcp.zephyr.test/unowned-repo" }),
         ),
         server(
           APP_FIXTURES.flagged.slug,

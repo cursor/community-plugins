@@ -36,7 +36,13 @@ export type RepoPreview =
       parts: AppPart[];
       /** Grok Bot can add it as it stands (see `addable`). */
       usable: boolean;
-      existing: { slug: string; listed: boolean; yours: boolean } | null;
+      existing: {
+        slug: string;
+        listed: boolean;
+        yours: boolean;
+        /** Listed with no owner: its maker can claim it. */
+        claimable: boolean;
+      } | null;
       stars: number | null;
       archived: boolean;
       pushedAt: string | null;
@@ -108,6 +114,7 @@ export async function previewAppRepo(url: string): Promise<RepoPreview> {
           slug: row.slug,
           listed: row.active,
           yours: !!viewer && row.owner_id === viewer.id,
+          claimable: row.active && !row.owner_id,
         }
       : null,
   };

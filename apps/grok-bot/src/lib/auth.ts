@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { createClient } from "@/utils/supabase/server";
+import { type GitHubAccount, githubAccountOf } from "./github-account";
 import { xHandleOf } from "./x-profile";
 
 export type Viewer = {
@@ -12,6 +13,8 @@ export type Viewer = {
   slug: string;
   /** Which account this is, for the account menu: an X handle or an email. */
   account: string | null;
+  /** Their GitHub account, when they have signed in with GitHub. */
+  github: GitHubAccount | null;
 };
 
 /** The signed-in member with their shared cursor.directory profile, or null. */
@@ -33,6 +36,7 @@ export async function getViewer(): Promise<Viewer | null> {
     image: profile?.image ?? null,
     slug: profile?.slug ?? "",
     account: handle ? `@${handle}` : (user.email ?? null),
+    github: githubAccountOf(user),
   };
 }
 

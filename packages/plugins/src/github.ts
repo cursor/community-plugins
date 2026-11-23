@@ -353,6 +353,51 @@ export async function githubRepoUrlById(
   }
 }
 
+export type GitHubRepoOwner = {
+  /** `owner/name` as GitHub has it now. */
+  fullName: string;
+  /** GitHub's numeric id for the account that owns it. */
+  ownerId: number;
+  /** "User" for a person's own repository, "Organization" for an org's. */
+  ownerType: string;
+};
+
+/**
+ * Who owns a repository now, by GitHub's id for it or by its `owner/name`.
+ * "gone" when GitHub has no such repository; null when GitHub couldn't be
+ * asked.
+ */
+export async function fetchGitHubRepoOwner(
+  ref: { id: number } | { owner: string; repo: string },
+  opts: FetchOptions = {},
+): Promise<GitHubRepoOwner | "gone" | null> {
+  const path =
+    "id" in ref ? `repositories/${ref.id}` : `repos/${ref.owner}/${ref.repo}`;
+  try {
+    const res = await fetchWithRateLimit(`https://api.github.com/${path}`, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        ...githubAuthHeaders(),
+      },
+      maxWaitMs: opts.maxWaitMs,
+    });
+    if (res.status === 404) return "gone";
+    if (!res.ok) return null;
+    const data = await res.json();
+    const ownerId = Number(data.owner?.id);
+    if (typeof data.full_name !== "string" || !Number.isFinite(ownerId))
+      return null;
+    return {
+      fullName: data.full_name,
+      ownerId,
+      ownerType: String(data.owner?.type ?? ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
 const DISPLAY_NAME_MAX = 80;
 
 /**
