@@ -134,6 +134,20 @@ export const APP_FIXTURES = {
     name: "Zephyr App Pending",
     description: "A community app waiting for its security check.",
   },
+  // One remote server and nothing else, the way the submit form stores one.
+  server: {
+    slug: "e2e-app-server",
+    name: "Zephyr App Server",
+    description: "A community app that is one remote MCP server.",
+    serverUrl: "https://mcp.zephyr.test/server",
+  },
+  // Read from a GitHub repository, which gives it its name and description.
+  repo: {
+    slug: "e2e-app-repo",
+    name: "Zephyr App Repo",
+    description: "A community app read from a GitHub repository.",
+    repository: "https://github.com/zephyr-labs-e2e/zephyr-app",
+  },
   // None of these is an app: one only runs in Cursor, one is marked as not
   // working in Grok Bot, and one has a server Grok Bot couldn't add as
   // written (its command runs a file on the submitter's own disk).
@@ -200,6 +214,15 @@ async function seedApps(owner: string) {
         discovery_source: "user",
       }),
       plugin(APP_FIXTURES.legacy, {}),
+      plugin(APP_FIXTURES.server, {
+        owner_id: owner,
+        discovery_source: "grok-bot",
+      }),
+      plugin(APP_FIXTURES.repo, {
+        owner_id: owner,
+        discovery_source: "user",
+        repository: APP_FIXTURES.repo.repository,
+      }),
       plugin(APP_FIXTURES.flagged, {
         owner_id: owner,
         active: false,
@@ -278,6 +301,19 @@ async function seedApps(owner: string) {
             )}`,
           },
         },
+        {
+          ...server(
+            APP_FIXTURES.server.slug,
+            "zephyr-server",
+            JSON.stringify({ url: APP_FIXTURES.server.serverUrl }),
+          ),
+          metadata: { url: APP_FIXTURES.server.serverUrl, auth: "none" },
+        },
+        server(
+          APP_FIXTURES.repo.slug,
+          "zephyr-repo",
+          JSON.stringify({ url: "https://mcp.zephyr.test/repo" }),
+        ),
         server(
           APP_FIXTURES.flagged.slug,
           "zephyr-flagged",

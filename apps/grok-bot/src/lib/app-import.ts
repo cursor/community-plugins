@@ -1,9 +1,7 @@
-import { worksInGrokBot } from "@directories/plugins/apps";
 import {
   GitHubParseError,
   parseGitHubPlugin,
 } from "@directories/plugins/github";
-import { addParts, grokBotAddUrl } from "@directories/plugins/grok-bot-add";
 import {
   InsertPluginError,
   type InsertPluginInput,
@@ -13,8 +11,9 @@ import {
   inspectMcpServer,
   publicHttpsUrl,
 } from "@directories/plugins/mcp-inspect";
-import { resolveComponentSlug, slugify } from "@directories/plugins/slug";
+import { slugify } from "@directories/plugins/slug";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { repoAddable, serverMetadata } from "@/lib/app-parts";
 
 // Adds one candidate app the way a member's submission would be: a GitHub
 // repository is parsed and must pass the "Grok Bot can add it" rule; a server
@@ -106,7 +105,7 @@ const https = (value: string): string | null => {
 };
 
 /** A logo address that really serves an image, or null. */
-async function workingLogo(value: string): Promise<string | null> {
+export async function workingLogo(value: string): Promise<string | null> {
   // A GitHub page for a file isn't the file.
   const raw = value
     .trim()
@@ -146,21 +145,7 @@ async function fromRepo(
     if (err.code === "rate_limited") return { outcome: "github_busy" };
     return { outcome: "repo_unreadable", detail: { code: err.code } };
   }
-  const usable =
-    worksInGrokBot(parsed.components.map((p) => p.type)) &&
-    grokBotAddUrl(
-      slugify(parsed.name) || "app",
-      addParts(
-        parsed.components.map((p) => ({
-          type: p.type,
-          name: p.name,
-          slug: resolveComponentSlug(p),
-          content: p.content ?? null,
-          metadata: p.metadata ?? null,
-        })),
-      ),
-    ) !== null;
-  if (!usable) return { outcome: "not_addable" };
+  if (!repoAddable(parsed)) return { outcome: "not_addable" };
   const { data: existing } = await supabase
     .from("plugins")
     .select("slug")
@@ -245,19 +230,7 @@ async function fromServer(
           name: slugify(name) || "server",
           description: `MCP server: ${name}`,
           content: JSON.stringify({ url: address }, null, 2),
-          metadata: {
-            url: address,
-            auth: inspection.auth,
-            ...(inspection.server.name || inspection.server.version
-              ? {
-                  server: {
-                    name: inspection.server.name,
-                    version: inspection.server.version,
-                  },
-                }
-              : {}),
-            ...(inspection.tools ? { tools: inspection.tools } : {}),
-          },
+          metadata: serverMetadata(address, inspection),
         },
       ],
     },

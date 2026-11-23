@@ -18,6 +18,9 @@ const ACTION: Record<string, string> = {
   unverify: "Removed verification",
   dismiss_verification_request: "Dismissed verification request",
   delete: "Deleted",
+  // Changes an app's owner made from Your submissions.
+  owner_edit: "Edited by its owner",
+  owner_refresh: "Refreshed by its owner",
 };
 
 function who(e: ModerationEvent): string {

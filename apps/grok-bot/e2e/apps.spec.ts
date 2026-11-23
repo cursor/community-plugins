@@ -371,6 +371,138 @@ test.describe("apps", () => {
     await expect(card(APP_FIXTURES.cursorOnly.name)).toHaveCount(0);
   });
 
+  test("an owner's new website shows at once; a new name goes back through the check", async ({
+    page,
+  }) => {
+    const row = async () => {
+      const { data } = await db()
+        .from("plugins")
+        .select("id, name, homepage, active, scan_status")
+        .eq("slug", APP_FIXTURES.community.slug)
+        .single();
+      return data;
+    };
+    const card = page
+      .getByTestId("submission")
+      .filter({ hasText: "Zephyr App Community" });
+
+    await signIn(page, "/my-bots");
+    await card.getByTestId("edit-app").click();
+    await expect(page).toHaveURL(`/apps/${APP_FIXTURES.community.slug}/edit`);
+    const save = page.getByRole("button", { name: /^Save/ });
+    await expect(save).toBeDisabled();
+    await page.getByLabel("Website").fill("https://zephyr.test/home");
+    await expect(page.getByTestId("recheck-notice")).toHaveCount(0);
+    await expect(save).toHaveText("Save");
+    await save.click();
+    await expect(page).toHaveURL(/\/my-bots\?submitted=/);
+    await expect(card).toHaveAttribute("data-status", "listed");
+    expect(await row()).toMatchObject({
+      homepage: "https://zephyr.test/home",
+      active: true,
+      scan_status: "safe",
+    });
+
+    // A new name is what the scan would judge, so the app waits for it.
+    await card.getByTestId("edit-app").click();
+    await page.getByLabel("Name").fill("Zephyr App Community Renamed");
+    await expect(page.getByTestId("recheck-notice")).toBeVisible();
+    await page.getByRole("button", { name: "Save and re-check" }).click();
+    await expect(page).toHaveURL(/\/my-bots\?submitted=/);
+    await expect(card).toHaveAttribute("data-status", "pending");
+    await expect(card).toContainText("Security check running");
+    await expect(card.getByTestId("edit-app")).toHaveCount(0);
+    const after = await row();
+    expect(after).toMatchObject({
+      name: "Zephyr App Community Renamed",
+      active: false,
+      scan_status: "pending",
+    });
+    // Its address is the same, and admins can see who changed what.
+    const { data: events } = await db()
+      .from("plugin_moderation_events")
+      .select("action, reason")
+      .eq("plugin_id", after?.id)
+      .order("id", { ascending: false })
+      .limit(2);
+    expect(events).toEqual([
+      { action: "owner_edit", reason: "Changed its name" },
+      { action: "owner_edit", reason: "Changed its website" },
+    ]);
+    // While it waits there's nothing to edit.
+    const res = await page.goto(`/apps/${APP_FIXTURES.community.slug}/edit`);
+    expect(res?.status()).toBe(404);
+    await seedFixtures();
+  });
+
+  test("an app can't take another listing's name", async ({ page }) => {
+    await signIn(page, `/apps/${APP_FIXTURES.community.slug}/edit`);
+    await page.getByLabel("Name").fill(APP_FIXTURES.legacy.name.toUpperCase());
+    await page.getByRole("button", { name: "Save and re-check" }).click();
+    await expect(page.getByTestId("edit-error")).toHaveText(
+      "Another listing already has that name.",
+    );
+    const { data } = await db()
+      .from("plugins")
+      .select("name, active")
+      .eq("slug", APP_FIXTURES.community.slug)
+      .single();
+    expect(data).toEqual({ name: APP_FIXTURES.community.name, active: true });
+  });
+
+  test("a repository's app takes its name and description from the repository", async ({
+    page,
+  }) => {
+    await signIn(page, `/apps/${APP_FIXTURES.repo.slug}/edit`);
+    await expect(page.getByLabel("Name")).toBeDisabled();
+    await expect(page.getByLabel("Description")).toBeDisabled();
+    await expect(
+      page.getByTestId("from-repo").getByRole("link"),
+    ).toHaveAttribute("href", APP_FIXTURES.repo.repository);
+    // Its website is the owner's to set.
+    await page.getByLabel("Website").fill("https://zephyr.test/repo");
+    await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  test("only its owner can edit an app", async ({ page }) => {
+    // Signed out, the page asks for a sign-in first.
+    await page.goto(`/apps/${APP_FIXTURES.community.slug}/edit`);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    // Signed in, someone else's app (this one has no owner) isn't there.
+    await signIn(page, "/my-bots");
+    const res = await page.goto(`/apps/${APP_FIXTURES.legacy.slug}/edit`);
+    expect(res?.status()).toBe(404);
+  });
+
+  test("Refresh reads an app's server again, and changes nothing when it's offline", async ({
+    page,
+  }) => {
+    await signIn(page, "/my-bots");
+    const card = (name: string) =>
+      page.getByTestId("submission").filter({ hasText: name });
+    // Offered where there's a source to read: one server, or a repository.
+    await expect(
+      card(APP_FIXTURES.repo.name).getByTestId("refresh-app"),
+    ).toBeVisible();
+    await expect(
+      card(APP_FIXTURES.community.name).getByTestId("refresh-app"),
+    ).toHaveCount(0);
+    // The fixture's server doesn't exist.
+    const server = card(APP_FIXTURES.server.name);
+    await server.getByTestId("refresh-app").click();
+    await expect(server.getByTestId("refresh-result")).toContainText(
+      "Couldn’t connect to the server",
+      { timeout: 30_000 },
+    );
+    await expect(server).toHaveAttribute("data-status", "listed");
+    const { data } = await db()
+      .from("plugins")
+      .select("active, scan_status")
+      .eq("slug", APP_FIXTURES.server.slug)
+      .single();
+    expect(data).toEqual({ active: true, scan_status: "safe" });
+  });
+
   test("the app form only accepts a URL that answers as an MCP server", async ({
     page,
   }) => {
