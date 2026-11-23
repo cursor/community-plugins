@@ -60,9 +60,9 @@ test.describe("what's new", () => {
     await expect(card.getByRole("heading", { level: 3 })).toHaveText([
       UPDATES[0].title,
     ]);
-    // Following an update's link is having seen it.
-    await card.getByRole("link", { name: /Find your app/ }).click();
-    await expect(page).toHaveURL("/?tab=apps");
+    // Following a link out of the card is having seen it.
+    await card.getByRole("link", { name: "See everything new" }).click();
+    await expect(page).toHaveURL("/whats-new");
     await expect(card).toHaveCount(0);
     expect(
       await page.evaluate((key) => localStorage.getItem(key), SEEN_KEY),
