@@ -387,7 +387,9 @@ export function AppSubmitForm() {
               : "This app is already submitted."}
           </span>
           <span>
-            {existing.listed ? (
+            {existing.claimable ? (
+              <Link href={`/apps/${existing.slug}/claim`}>Yours? Claim it</Link>
+            ) : existing.listed ? (
               <Link href={`/apps/${existing.slug}`}>View listing</Link>
             ) : existing.yours ? (
               <Link href="/my-bots">Your submissions</Link>

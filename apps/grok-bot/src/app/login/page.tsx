@@ -17,6 +17,7 @@ const COPY: [prefix: string, copy: string][] = [
     "Sign in to see the bots you’ve submitted and where they are in review.",
   ],
   ["/admin", "Sign in to review submitted bots."],
+  ["/apps/", "Sign in to claim or edit your app. You’ll come right back here."],
 ];
 
 type Props = { searchParams: Promise<{ next?: string; error?: string }> };

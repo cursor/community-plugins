@@ -175,6 +175,26 @@ async function guardedFetch(
   }
 }
 
+/**
+ * The text a public https address serves, or null when it can't be read: for
+ * a small file a site publishes about itself. Redirects are followed, with
+ * every hop checked, and at most MAX_BODY_BYTES are read.
+ */
+export async function fetchPublicText(rawUrl: string): Promise<string | null> {
+  const url = publicHttpsUrl(rawUrl);
+  if (!url) return null;
+  try {
+    const { res, body } = await guardedFetch(
+      url,
+      { headers: { accept: "text/plain, */*;q=0.5" } },
+      { follow: true },
+    );
+    return res.ok ? body : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // MCP (Streamable HTTP, JSON-RPC)
 // ---------------------------------------------------------------------------

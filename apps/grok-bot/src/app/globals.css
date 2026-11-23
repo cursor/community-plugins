@@ -1655,6 +1655,64 @@ img {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+/* An app's claim page: the app, then each way to prove it's yours. */
+.claim-page .claim-app {
+  height: auto;
+  margin: 32px auto 0;
+  max-width: 560px;
+  text-align: left;
+}
+.claim {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: left;
+}
+.claim-way {
+  margin-top: 28px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.claim-way h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.claim-way p {
+  margin: 0 0 12px;
+}
+.claim-way .muted {
+  font-size: 13px;
+}
+.claim-way a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.claim .claim-way code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.claim-addresses {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.claim-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 14px;
+  background: var(--pill);
+  overflow-wrap: anywhere;
+}
+.claim-way .claim-result {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
 /* The empty, loading and filled cards share one fixed height (a title, four
    description lines and the byline; six lines on phones), so switching
    between them never moves the page. Longer text is clipped. */

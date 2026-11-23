@@ -21,6 +21,7 @@ const ACTION: Record<string, string> = {
   // Changes an app's owner made from Your submissions.
   owner_edit: "Edited by its owner",
   owner_refresh: "Refreshed by its owner",
+  owner_claim: "Claimed by its maker",
 };
 
 function who(e: ModerationEvent): string {

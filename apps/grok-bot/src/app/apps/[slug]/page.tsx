@@ -180,6 +180,12 @@ export default async function AppPage({ params }: Props) {
           <Link href="/about#adding">Before you add an app</Link>
         </p>
       )}
+      {app.claimable && (
+        <p className="detail-note" data-testid="claim-app">
+          Made this app? <Link href={`/apps/${app.slug}/claim`}>Claim it</Link>{" "}
+          to edit its listing and show it on your profile.
+        </p>
+      )}
 
       {contents && (
         <section className="app-parts" aria-labelledby="inside-title">

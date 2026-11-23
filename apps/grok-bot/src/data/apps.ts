@@ -101,6 +101,8 @@ export type AppDetail = DirectoryApp & {
   components: AppComponent[];
   /** The member who submitted it, when it's a community app. */
   ownerId: string | null;
+  /** Nobody owns it yet, and there's a source its maker can prove is theirs. */
+  claimable: boolean;
 };
 
 type AppRow = {
@@ -311,6 +313,61 @@ async function loadApp(slug: string): Promise<AppDetail | null> {
         signIn: metadata?.auth === "oauth",
       })),
     ownerId: data.owner_id,
+    claimable:
+      !data.owner_id &&
+      appSource({
+        repository: data.repository,
+        marketplace_plugin_id: data.marketplace_plugin_id,
+        components,
+      }) !== null,
+  };
+}
+
+/** An app as its claim page needs it. */
+export type AppToClaim = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  logo: string | null;
+  homepage: string | null;
+  ownerId: string | null;
+  /** Null for an app that can't be claimed: official, or only a link. */
+  source: AppSource | null;
+};
+
+/** A listed app at this address, with who owns it and where it comes from. */
+export async function getAppToClaim(slug: string): Promise<AppToClaim | null> {
+  const admin = await createAdminClient();
+  const { data, error } = await admin
+    .from("plugins")
+    .select(
+      "id, slug, name, description, logo, homepage, repository, owner_id, marketplace_plugin_id, plugin_components(type, metadata)",
+    )
+    .eq("slug", slug)
+    .eq("active", true)
+    .eq("permanently_blocked", false)
+    .eq("grok_bot_addable", true)
+    .not("unavailable_in", "cs", "{grok_bot}")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    id: data.id,
+    slug: data.slug,
+    name: data.name,
+    description: data.description ?? "",
+    logo: data.logo,
+    homepage: data.homepage,
+    ownerId: data.owner_id,
+    source: appSource({
+      repository: data.repository,
+      marketplace_plugin_id: data.marketplace_plugin_id,
+      components: (data.plugin_components ?? []) as {
+        type: string;
+        metadata: Record<string, unknown> | null;
+      }[],
+    }),
   };
 }
 
