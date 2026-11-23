@@ -158,13 +158,26 @@ export type AppsFirstPage = {
 export function firstAppsPage({
   limit = 60,
   category = null,
-  exclude = null,
 }: {
   limit?: number;
   category?: string | null;
-  exclude?: string | null;
 } = {}): Promise<AppsFirstPage> {
-  return appsFirstPage(limit, category, exclude);
+  return appsFirstPage(limit, category);
+}
+
+const RELATED_APPS = 3;
+
+/**
+ * The most added apps in `category` other than the app at `slug`, for an app
+ * page. It reads one row more than it shows and drops the page's own app
+ * here, so every app page in a category shares one cached query.
+ */
+export async function relatedApps(
+  category: string,
+  slug: string,
+): Promise<AppListItem[]> {
+  const { apps } = await appsFirstPage(RELATED_APPS + 1, category);
+  return apps.filter((app) => app.slug !== slug).slice(0, RELATED_APPS);
 }
 
 const appsFirstPage = cached("apps-first-page", ["apps"], loadAppsFirstPage);
@@ -172,13 +185,11 @@ const appsFirstPage = cached("apps-first-page", ["apps"], loadAppsFirstPage);
 async function loadAppsFirstPage(
   limit: number,
   category: string | null,
-  exclude: string | null,
 ): Promise<AppsFirstPage> {
   const admin = await createAdminClient();
   const { data, error } = await admin.rpc("grok_bot_apps_page", {
     p_limit: limit,
     p_category: category,
-    p_exclude: exclude,
   });
   if (error) throw error;
   const page = (data ?? {}) as {

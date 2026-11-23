@@ -244,6 +244,38 @@ test.describe("apps", () => {
     await expect(page.getByText("zephyr-notes")).toBeVisible();
   });
 
+  test("an app page lists others in its category, never itself", async ({
+    page,
+  }) => {
+    // Both lead Productivity, so each would head its own list if the page
+    // didn't leave its own app out.
+    for (const [slug, installs] of [
+      [APP_FIXTURES.official.slug, 987_654],
+      [APP_FIXTURES.community.slug, 987_653],
+    ] as const) {
+      const { error } = await db()
+        .from("plugins")
+        .update({ install_count: installs, app_category: "PRODUCTIVITY" })
+        .eq("slug", slug);
+      if (error) throw error;
+    }
+    for (const [own, other] of [
+      [APP_FIXTURES.official, APP_FIXTURES.community],
+      [APP_FIXTURES.community, APP_FIXTURES.official],
+    ] as const) {
+      await page.goto(`/apps/${own.slug}`);
+      const related = page.locator(".related");
+      await expect(related.getByRole("heading", { level: 2 })).toHaveText(
+        "More in Productivity",
+      );
+      const rows = related.getByTestId("app-row");
+      await expect(rows.first()).toContainText(other.name);
+      await expect(rows.filter({ hasText: own.name })).toHaveCount(0);
+      expect(await rows.count()).toBeLessThanOrEqual(3);
+    }
+    await seedFixtures();
+  });
+
   test("an older community app adds from the config in its install link", async ({
     page,
   }) => {
