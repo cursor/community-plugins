@@ -65,6 +65,12 @@ are the same; bots live in their own tables (`supabase/migrations/20261030120000
   rows and bot pages link there, the account menu has "Your profile", and
   "Your submissions" has the link to copy. `/creators/<handle>`, the first
   address, redirects.
+- **What's new:** `src/lib/whats-new.ts` lists what has changed for people
+  who list here, newest first. `/whats-new` shows all of it. A signed-in
+  member is shown the updates newer than their browser last saw (two at
+  most) in a card in the corner, once; the browser remembers the newest
+  update's id in `localStorage`. To announce something, add an entry at the
+  top of the list.
 - **Sharing:** `sitemap.xml` (listed bots and apps, and profiles),
   `robots.txt`, and Open Graph images for the home page, each bot, each app
   and each profile (`opengraph-image.tsx`).
