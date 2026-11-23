@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient as createAdminClient } from "@/utils/supabase/admin-client";
 import { createClient } from "@/utils/supabase/server";
 import { type GitHubAccount, githubAccountOf } from "./github-account";
+import { linkedProviders, type Provider } from "./sign-in-providers";
 import { xHandleOf } from "./x-profile";
 
 export type Viewer = {
@@ -15,6 +16,8 @@ export type Viewer = {
   account: string | null;
   /** Their GitHub account, when they have signed in with GitHub. */
   github: GitHubAccount | null;
+  /** The ways this account can sign in. */
+  signIns: Provider[];
 };
 
 /** The signed-in member with their shared cursor.directory profile, or null. */
@@ -37,6 +40,7 @@ export async function getViewer(): Promise<Viewer | null> {
     slug: profile?.slug ?? "",
     account: handle ? `@${handle}` : (user.email ?? null),
     github: githubAccountOf(user),
+    signIns: linkedProviders(user),
   };
 }
 

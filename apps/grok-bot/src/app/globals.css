@@ -1166,6 +1166,41 @@ img {
   flex-wrap: wrap;
   font-size: 13px;
 }
+/* Under the list: why a listing might be missing from it. */
+.subs-missing {
+  margin-top: 40px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--card);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.subs-missing h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.subs-missing ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.subs-missing p {
+  margin: 0;
+}
+.subs-missing form {
+  margin-top: 8px;
+}
+.subs-missing a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 /* Which name the member's bots are credited to. */
 .credit-choice {
   display: flex;
