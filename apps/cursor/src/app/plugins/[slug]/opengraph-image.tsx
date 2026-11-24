@@ -2,11 +2,11 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getPluginBySlug } from "@/data/queries";
 import {
   formatCount,
+  loadOgImage,
   OG,
   OGLayout,
   ogResponse,
   renderOGBytes,
-  resolveOgImageUrl,
 } from "@/lib/og";
 
 export const alt = "Plugin";
@@ -37,7 +37,7 @@ async function renderImage(slug: string) {
     );
   }
 
-  const logoUrl = resolveOgImageUrl(data.logo);
+  const logoUrl = await loadOgImage(data.logo);
 
   const components = data.plugin_components ?? [];
   const typeCounts: Record<string, number> = {};

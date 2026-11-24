@@ -1,12 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { getUserProfile } from "@/data/queries";
-import {
-  OG,
-  OGLayout,
-  ogResponse,
-  renderOGBytes,
-  resolveOgImageUrl,
-} from "@/lib/og";
+import { loadOgImage, OG, OGLayout, ogResponse, renderOGBytes } from "@/lib/og";
 
 export const alt = "User Profile";
 export const size = { width: OG.width, height: OG.height };
@@ -36,7 +30,7 @@ async function renderImage(slug: string) {
     );
   }
 
-  const avatarUrl = resolveOgImageUrl(data.image);
+  const avatarUrl = await loadOgImage(data.image);
 
   return renderOGBytes(
     <OGLayout>
