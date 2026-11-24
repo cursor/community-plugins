@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAction } from "next-safe-action/hooks";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -33,12 +34,32 @@ const formSchema = z.object({
       message: "Description must be less than 500 characters.",
     }),
   link: z.string().url({
-    message: "Please enter a valid job posting URL.",
+    message: "Please enter a valid URL.",
   }),
   logo: z.string().optional(),
   company_id: z.string().optional(),
-  config: z.record(z.string(), z.any()).nullable(),
+  config: z
+    .record(z.string(), z.any(), {
+      message: "Config must be a JSON object.",
+    })
+    .nullable(),
 });
+
+type Config = Record<string, unknown>;
+
+/** What the config box holds: nothing, a JSON object, or text that isn't one. */
+function parseConfig(text: string): Config | string | null {
+  if (!text.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Config;
+    }
+  } catch {
+    // Not JSON (yet): kept as text below, which fails validation.
+  }
+  return text;
+}
 
 export type MCPData = {
   id: string;
@@ -47,6 +68,7 @@ export type MCPData = {
   link?: string;
   logo?: string;
   company_id: string;
+  config?: Config | null;
   active: boolean;
 };
 
@@ -68,18 +90,26 @@ export function EditMCPForm({ data }: { data: MCPData }) {
       description: data?.description ?? "",
       link: data?.link ?? "",
       logo: data?.logo ?? "",
+      config: data?.config ?? null,
     },
   });
+
+  // The config as typed. The form field holds the parsed object, so the box
+  // can't show that back while someone is still halfway through typing JSON.
+  const [configText, setConfigText] = useState(() =>
+    data?.config ? JSON.stringify(data.config, null, 2) : "",
+  );
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     execute({
       id: data.id,
-      company_id: values.company_id,
+      // No company picked: leave whatever the listing has.
+      company_id: values.company_id || undefined,
       name: values.name,
       description: values.description,
       link: values.link,
       logo: values.logo,
-      config: null,
+      config: values.config,
     });
   };
 
@@ -141,17 +171,10 @@ export function EditMCPForm({ data }: { data: MCPData }) {
                 <FormControl>
                   <Textarea
                     placeholder="Paste your MCP config here"
-                    value={
-                      field.value ? JSON.stringify(field.value, null, 2) : ""
-                    }
+                    value={configText}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      try {
-                        field.onChange(val ? JSON.parse(val) : null);
-                      } catch {
-                        // If invalid JSON, just store as string for now (or ignore)
-                        field.onChange(val);
-                      }
+                      setConfigText(e.target.value);
+                      field.onChange(parseConfig(e.target.value));
                     }}
                     onBlur={field.onBlur}
                     name={field.name}

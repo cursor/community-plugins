@@ -32,9 +32,7 @@ function ogSiteOrigin(): string {
  * Satori requires absolute http(s) image URLs. Plugin logos are sometimes stored
  * as site-relative paths (e.g. `assets/logo.png`).
  */
-export function resolveOgImageUrl(
-  src: string | null | undefined,
-): string | null {
+function resolveOgImageUrl(src: string | null | undefined): string | null {
   const trimmed = src?.trim();
   if (!trimmed) return null;
 
@@ -49,6 +47,79 @@ export function resolveOgImageUrl(
 
   const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return new URL(path, ogSiteOrigin()).toString();
+}
+
+// A logo larger than this isn't worth holding up a share card for.
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const IMAGE_TIMEOUT_MS = 5_000;
+
+/** The type of a picture Satori can draw, read from its first bytes. */
+function rasterType(bytes: Uint8Array): string | null {
+  const starts = (signature: (number | null)[]) =>
+    signature.every((byte, i) => byte === null || bytes[i] === byte);
+  if (starts([0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return "image/png";
+  }
+  if (starts([0x47, 0x49, 0x46, 0x38])) return "image/gif";
+  if (
+    starts([0x52, 0x49, 0x46, 0x46, null, null, null, null, 0x57, 0x45, 0x42])
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+/**
+ * Whether Satori can size this SVG: its `<svg>` tag needs a `viewBox`, or a
+ * `width` and `height` in plain numbers. Without them it throws.
+ */
+function drawableSvg(text: string): boolean {
+  const tag = text.match(/<svg[^>]*>/i)?.[0];
+  if (!tag) return false;
+  const viewBox = tag.match(/viewBox=['"]([^'"]+)['"]/)?.[1];
+  if (viewBox) {
+    const numbers = viewBox.split(/[, ]/).filter(Boolean).map(Number);
+    if (numbers.length === 4 && numbers.every(Number.isFinite)) return true;
+  }
+  return (
+    /width=['"](\d*\.?\d+)['"]/.test(tag) &&
+    /height=['"](\d*\.?\d+)['"]/.test(tag)
+  );
+}
+
+/**
+ * A logo or photo as a data URI Satori can draw, or null when it can't be
+ * drawn, so the card shows its fallback instead of an empty box.
+ *
+ * Logos come from anywhere: submitted URLs, site icons, uploads. Left to
+ * fetch one itself, Satori draws nothing (and logs an error) for a type it
+ * doesn't know (an icon file, AVIF, an error page), for an SVG served without
+ * the SVG content type, and for an SVG with any non-Latin character in it.
+ * Reading the bytes here covers the last two and lets us tell in advance.
+ */
+export async function loadOgImage(
+  src: string | null | undefined,
+): Promise<string | null> {
+  const url = resolveOgImageUrl(src);
+  if (!url) return null;
+
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) return null;
+
+    const type =
+      rasterType(bytes) ??
+      (drawableSvg(bytes.toString("utf8")) ? "image/svg+xml" : null);
+    return type ? `data:${type};base64,${bytes.toString("base64")}` : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadFonts() {
