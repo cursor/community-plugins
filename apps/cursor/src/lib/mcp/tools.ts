@@ -1,7 +1,14 @@
 import "server-only";
+import {
+  MarketplaceSyncError,
+  type SyncPluginResult,
+  syncMarketplacePlugin,
+  syncMarketplacePlugins,
+} from "@directories/plugins/marketplace";
 import type { PluginRow } from "@directories/plugins/types";
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
 import { getPublicOrigin } from "mcp-handler";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import {
   getFlaggedPlugins,
@@ -46,6 +53,11 @@ const UUID_RE =
 const SCAN_IN_PROGRESS_MS = 15 * 60 * 1000;
 const MAX_COMPONENT_CONTENT_CHARS = 4000;
 const MAX_SUMMARY_CHARS = 500;
+const MAX_SYNC_CHANGES = 50;
+const MAX_SYNC_ERRORS = 25;
+
+const GROK_BOT_SITE =
+  process.env.GROK_BOT_DIRECTORY_URL ?? "https://grok-bot.directory";
 
 const pluginRef = z
   .string()
@@ -135,6 +147,56 @@ async function beginWrite(admin: Admin) {
 
 function pluginUrl(slug: string, { origin }: { origin: string }) {
   return `${origin}/plugins/${slug}`;
+}
+
+function formatSyncedPlugin(result: SyncPluginResult, origin: string) {
+  return {
+    action: result.action,
+    id: result.id,
+    slug: result.slug,
+    name: result.name,
+    marketplace_plugin_id: result.marketplace_plugin_id,
+    cursor_directory_url: pluginUrl(result.slug, { origin }),
+    grok_bot_directory_url: `${GROK_BOT_SITE}/apps/${result.slug}`,
+  };
+}
+
+function revalidateSyncedPlugins(slugs: string[]) {
+  if (slugs.length === 0) return;
+  revalidatePath("/admin/plugins");
+  revalidateTag("plugins", { expire: 0 });
+  for (const slug of new Set(slugs)) {
+    revalidateTag(`plugin-${slug}`, { expire: 0 });
+  }
+}
+
+async function recordMarketplaceSyncEvents(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: Admin,
+  changes: SyncPluginResult[],
+  reason: string,
+) {
+  if (changes.length === 0) return;
+  const { error } = await supabase.from("plugin_moderation_events").insert(
+    changes.map((c) => ({
+      plugin_id: c.id,
+      plugin_slug: c.slug,
+      action: "marketplace_sync",
+      actor_id: admin.userId,
+      source: "mcp",
+      client_id: admin.clientId,
+      reason,
+      after: {
+        action: c.action,
+        marketplace_plugin_id: c.marketplace_plugin_id,
+      },
+    })),
+  );
+  if (error) {
+    console.error("[mcp:sync-marketplace-plugins] audit write failed:", {
+      error: error.message,
+    });
+  }
 }
 
 function summarize(plugin: PluginRow, origin: string) {
@@ -610,6 +672,112 @@ export function registerModerationTools(server: McpServer) {
         "Dismissed verification request",
         await dismissVerificationRequest(await beginWrite(admin), state.id),
       );
+    }),
+  );
+
+  server.registerTool(
+    "sync_marketplace_plugins",
+    {
+      title: "Sync marketplace plugins",
+      description:
+        "Refresh official plugins from the Cursor Marketplace (same sync as the daily cron) so new or updated marketplace plugins appear on cursor.directory and grok-bot.directory. Pass `plugin` to refresh one specific plugin immediately (by marketplace ID, marketplace name, display name, or directory slug); omit `plugin` to sync the entire marketplace catalog.",
+      inputSchema: z.object({
+        plugin: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe(
+            "Optional marketplace plugin ID (e.g. '86604793'), marketplace name (e.g. 'jobber'), display name, or directory slug (e.g. 'jobber-1'). Omit to sync the full catalog.",
+          ),
+      }),
+      annotations: { ...write, openWorldHint: true },
+    },
+    adminTool(async ({ plugin }, admin) => {
+      const { success } = await mcpModerationLimit(admin.userId);
+      if (!success) {
+        throw new ToolError(
+          "Too many moderation changes in the last hour. Try again later.",
+        );
+      }
+
+      const supabase = await createClient();
+      const log = (line: string) =>
+        console.log(`[mcp:sync-marketplace-plugins] ${line}`);
+
+      if (plugin) {
+        let result: SyncPluginResult;
+        try {
+          result = await syncMarketplacePlugin(supabase, plugin, log);
+        } catch (err) {
+          if (err instanceof MarketplaceSyncError) {
+            throw new ToolError(err.message);
+          }
+          throw new ToolError(
+            `Failed to sync marketplace plugin "${plugin}": ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+
+        if (result.action !== "unchanged") {
+          revalidateSyncedPlugins([result.slug]);
+          await recordMarketplaceSyncEvents(
+            supabase,
+            admin,
+            [result],
+            `Single-plugin marketplace sync (${result.action})`,
+          );
+        }
+
+        return json(
+          `Marketplace sync (${result.action}): "${result.name}" (${result.slug})`,
+          formatSyncedPlugin(result, admin.origin),
+        );
+      }
+
+      const changes: SyncPluginResult[] = [];
+      const errors: string[] = [];
+      let summary: Awaited<ReturnType<typeof syncMarketplacePlugins>>;
+      try {
+        summary = await syncMarketplacePlugins(
+          supabase,
+          (line) => {
+            log(line);
+            if (line.startsWith("[failed]")) errors.push(line);
+          },
+          (change) => changes.push(change),
+        );
+      } catch (err) {
+        throw new ToolError(
+          `Failed to sync marketplace catalog: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      revalidateSyncedPlugins(changes.map((c) => c.slug));
+      await recordMarketplaceSyncEvents(
+        supabase,
+        admin,
+        changes,
+        "Full marketplace sync",
+      );
+
+      return json("Synced official plugins from the Cursor Marketplace.", {
+        summary,
+        changes: changes
+          .slice(0, MAX_SYNC_CHANGES)
+          .map((c) => formatSyncedPlugin(c, admin.origin)),
+        ...(changes.length > MAX_SYNC_CHANGES
+          ? { changes_omitted: changes.length - MAX_SYNC_CHANGES }
+          : {}),
+        ...(errors.length > 0
+          ? {
+              errors: errors.slice(0, MAX_SYNC_ERRORS),
+              ...(errors.length > MAX_SYNC_ERRORS
+                ? { errors_omitted: errors.length - MAX_SYNC_ERRORS }
+                : {}),
+            }
+          : {}),
+      });
     }),
   );
 }

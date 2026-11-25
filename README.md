@@ -149,6 +149,7 @@ Admins can moderate Community Plugins from Cursor through the MCP server at
 | `unpublish_plugin`, `block_plugin` | Hide a plugin, or hide and permanently block it (with a reason) |
 | `rescan_plugin` | Queue a new security scan (refused while one is in progress) |
 | `set_plugin_verified`, `dismiss_verification_request` | Manage the verified badge |
+| `sync_marketplace_plugins` | Refresh official plugins from the Cursor Marketplace (all or one plugin) |
 
 Deleting plugins stays in the web admin. Write tools are rate-limited per admin
 (`mcp-moderation` Vercel Firewall rule), and every change from the web admin or

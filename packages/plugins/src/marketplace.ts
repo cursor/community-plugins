@@ -167,6 +167,21 @@ type ExistingPlugin = {
   marketplace_updated_at: string | null;
 };
 
+export type SyncPluginAction =
+  | "inserted"
+  | "updated"
+  | "linked"
+  | "unchanged"
+  | "deactivated";
+
+export type SyncPluginResult = {
+  action: SyncPluginAction;
+  id: string;
+  slug: string;
+  name: string;
+  marketplace_plugin_id: string;
+};
+
 export type SyncSummary = {
   catalog: number;
   inserted: number;
@@ -176,6 +191,16 @@ export type SyncSummary = {
   deactivated: number;
   failed: number;
 };
+
+export class MarketplaceSyncError extends Error {
+  constructor(
+    public readonly code: "not_found" | "ambiguous",
+    message: string,
+  ) {
+    super(message);
+    this.name = "MarketplaceSyncError";
+  }
+}
 
 async function fetchExisting(
   supabase: SupabaseClient,
@@ -220,6 +245,179 @@ async function replaceComponents(
   if (error) throw new Error(error.message);
 }
 
+type SyncState = {
+  existing: ExistingPlugin[];
+  byMarketplaceId: Map<string, ExistingPlugin>;
+  takenSlugs: Set<string>;
+};
+
+async function syncOneCatalogPlugin(
+  supabase: SupabaseClient,
+  p: CatalogPlugin,
+  state: SyncState,
+  options: { force?: boolean; log: (line: string) => void },
+): Promise<SyncPluginResult> {
+  const label = `${p.name} (${p.id})`;
+  const known = state.byMarketplaceId.get(p.id);
+  const link = linkFields(p);
+
+  if (known) {
+    const imported = known.discovery_source === "marketplace";
+    if (
+      !options.force &&
+      known.marketplace_updated_at &&
+      link.marketplace_updated_at &&
+      new Date(known.marketplace_updated_at).getTime() ===
+        new Date(link.marketplace_updated_at).getTime()
+    ) {
+      return {
+        action: "unchanged",
+        id: known.id,
+        slug: known.slug,
+        name: known.name,
+        marketplace_plugin_id: p.id,
+      };
+    }
+    const nextName = imported ? p.displayName || p.name : known.name;
+    const { error } = await supabase
+      .from("plugins")
+      .update(
+        imported
+          ? // The marketplace renames plugins too; the slug stays.
+            {
+              ...marketplaceFields(p),
+              name: nextName,
+              ...link,
+            }
+          : link,
+      )
+      .eq("id", known.id);
+    if (error) throw new Error(error.message);
+    if (imported) await replaceComponents(supabase, known.id, p);
+    options.log(`[updated] ${label}`);
+    return {
+      action: "updated",
+      id: known.id,
+      slug: known.slug,
+      name: nextName,
+      marketplace_plugin_id: p.id,
+    };
+  }
+
+  const displayName = p.displayName || p.name;
+  const repository = repositoryFor(p);
+  const match = state.existing.find(
+    (e) =>
+      !e.marketplace_plugin_id &&
+      sameText(e.name, displayName) &&
+      repoKey(e.repository) !== null &&
+      repoKey(e.repository) === repoKey(repository),
+  );
+  if (match) {
+    const { error } = await supabase
+      .from("plugins")
+      .update(link)
+      .eq("id", match.id);
+    if (error) throw new Error(error.message);
+    match.marketplace_plugin_id = p.id;
+    state.byMarketplaceId.set(p.id, match);
+    options.log(`[linked] ${label} -> ${match.slug}`);
+    return {
+      action: "linked",
+      id: match.id,
+      slug: match.slug,
+      name: match.name,
+      marketplace_plugin_id: p.id,
+    };
+  }
+
+  // An official plugin keeps its own name even when community plugins
+  // share it; only slugs are unique, and the database numbers a taken one.
+  const preferredSlug = slugify(p.name);
+  const slug =
+    preferredSlug && !state.takenSlugs.has(preferredSlug)
+      ? preferredSlug
+      : undefined;
+  const inserted = await insertPlugin(
+    supabase,
+    {
+      ...marketplaceFields(p),
+      name: displayName,
+      slug,
+      components: componentsFor(p).map((c) => ({ ...c, content: null })),
+    },
+    { ownerId: null, source: "marketplace", skipScan: true },
+  );
+  const { error } = await supabase
+    .from("plugins")
+    .update(link)
+    .eq("id", inserted.id);
+  if (error) throw new Error(error.message);
+  state.takenSlugs.add(inserted.slug);
+  options.log(`[inserted] ${label} -> ${inserted.slug}`);
+  return {
+    action: "inserted",
+    id: inserted.id,
+    slug: inserted.slug,
+    name: displayName,
+    marketplace_plugin_id: p.id,
+  };
+}
+
+async function deactivateGonePlugin(
+  supabase: SupabaseClient,
+  gone: ExistingPlugin,
+  log: (line: string) => void,
+): Promise<SyncPluginResult> {
+  const imported = gone.discovery_source === "marketplace";
+  const { error } = await supabase
+    .from("plugins")
+    .update(
+      imported
+        ? { active: false }
+        : {
+            marketplace_plugin_id: null,
+            marketplace_updated_at: null,
+            marketplace_categories: [],
+            unavailable_in: [],
+          },
+    )
+    .eq("id", gone.id);
+  if (error) throw new Error(error.message);
+
+  // A community plugin again: whether Grok Bot can add it now depends on
+  // its own setup.
+  if (!imported) {
+    try {
+      await refreshGrokBotAddable(supabase, gone.id);
+    } catch (err) {
+      log(
+        `[failed] grok_bot_addable for ${gone.slug}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  log(`[removed] ${gone.slug}`);
+  return {
+    action: "deactivated",
+    id: gone.id,
+    slug: gone.slug,
+    name: gone.name,
+    marketplace_plugin_id: gone.marketplace_plugin_id ?? "",
+  };
+}
+
+function buildSyncState(existing: ExistingPlugin[]): SyncState {
+  return {
+    existing,
+    byMarketplaceId: new Map(
+      existing
+        .filter((e) => e.marketplace_plugin_id)
+        .map((e) => [e.marketplace_plugin_id as string, e]),
+    ),
+    takenSlugs: new Set(existing.map((e) => e.slug)),
+  };
+}
+
 /**
  * Brings `plugins` in line with the marketplace. New plugins are inserted
  * (listed at once: the marketplace already reviewed them), changed ones are
@@ -231,15 +429,13 @@ async function replaceComponents(
 export async function syncMarketplacePlugins(
   supabase: SupabaseClient,
   log: (line: string) => void = () => {},
+  onChange?: (result: SyncPluginResult) => void,
 ): Promise<SyncSummary> {
-  const catalog = await fetchMarketplaceCatalog();
-  const existing = await fetchExisting(supabase);
-  const byMarketplaceId = new Map(
-    existing
-      .filter((e) => e.marketplace_plugin_id)
-      .map((e) => [e.marketplace_plugin_id as string, e]),
-  );
-  const takenSlugs = new Set(existing.map((e) => e.slug));
+  const [catalog, existing] = await Promise.all([
+    fetchMarketplaceCatalog(),
+    fetchExisting(supabase),
+  ]);
+  const state = buildSyncState(existing);
   const summary: SyncSummary = {
     catalog: catalog.length,
     inserted: 0,
@@ -253,86 +449,9 @@ export async function syncMarketplacePlugins(
   for (const p of catalog) {
     const label = `${p.name} (${p.id})`;
     try {
-      const known = byMarketplaceId.get(p.id);
-      const link = linkFields(p);
-
-      if (known) {
-        const imported = known.discovery_source === "marketplace";
-        if (
-          known.marketplace_updated_at &&
-          link.marketplace_updated_at &&
-          new Date(known.marketplace_updated_at).getTime() ===
-            new Date(link.marketplace_updated_at).getTime()
-        ) {
-          summary.unchanged++;
-          continue;
-        }
-        const { error } = await supabase
-          .from("plugins")
-          .update(
-            imported
-              ? // The marketplace renames plugins too; the slug stays.
-                {
-                  ...marketplaceFields(p),
-                  name: p.displayName || p.name,
-                  ...link,
-                }
-              : link,
-          )
-          .eq("id", known.id);
-        if (error) throw new Error(error.message);
-        if (imported) await replaceComponents(supabase, known.id, p);
-        summary.updated++;
-        log(`[updated] ${label}`);
-        continue;
-      }
-
-      const displayName = p.displayName || p.name;
-      const repository = repositoryFor(p);
-      const match = existing.find(
-        (e) =>
-          !e.marketplace_plugin_id &&
-          sameText(e.name, displayName) &&
-          repoKey(e.repository) !== null &&
-          repoKey(e.repository) === repoKey(repository),
-      );
-      if (match) {
-        const { error } = await supabase
-          .from("plugins")
-          .update(link)
-          .eq("id", match.id);
-        if (error) throw new Error(error.message);
-        match.marketplace_plugin_id = p.id;
-        summary.linked++;
-        log(`[linked] ${label} -> ${match.slug}`);
-        continue;
-      }
-
-      // An official plugin keeps its own name even when community plugins
-      // share it; only slugs are unique, and the database numbers a taken one.
-      const preferredSlug = slugify(p.name);
-      const slug =
-        preferredSlug && !takenSlugs.has(preferredSlug)
-          ? preferredSlug
-          : undefined;
-      const inserted = await insertPlugin(
-        supabase,
-        {
-          ...marketplaceFields(p),
-          name: displayName,
-          slug,
-          components: componentsFor(p).map((c) => ({ ...c, content: null })),
-        },
-        { ownerId: null, source: "marketplace", skipScan: true },
-      );
-      const { error } = await supabase
-        .from("plugins")
-        .update(link)
-        .eq("id", inserted.id);
-      if (error) throw new Error(error.message);
-      takenSlugs.add(inserted.slug);
-      summary.inserted++;
-      log(`[inserted] ${label} -> ${inserted.slug}`);
+      const result = await syncOneCatalogPlugin(supabase, p, state, { log });
+      summary[result.action]++;
+      if (result.action !== "unchanged") onChange?.(result);
     } catch (err) {
       summary.failed++;
       log(
@@ -347,39 +466,104 @@ export async function syncMarketplacePlugins(
   for (const gone of existing.filter(
     (e) => e.marketplace_plugin_id && !live.has(e.marketplace_plugin_id),
   )) {
-    const imported = gone.discovery_source === "marketplace";
-    const { error } = await supabase
-      .from("plugins")
-      .update(
-        imported
-          ? { active: false }
-          : {
-              marketplace_plugin_id: null,
-              marketplace_updated_at: null,
-              marketplace_categories: [],
-              unavailable_in: [],
-            },
-      )
-      .eq("id", gone.id);
-    if (error) {
+    try {
+      const result = await deactivateGonePlugin(supabase, gone, log);
+      summary.deactivated++;
+      onChange?.(result);
+    } catch (err) {
       summary.failed++;
-      log(`[failed] removing ${gone.slug}: ${error.message}`);
-      continue;
+      log(
+        `[failed] removing ${gone.slug}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-    // A community plugin again: whether Grok Bot can add it now depends on
-    // its own setup.
-    if (!imported) {
-      try {
-        await refreshGrokBotAddable(supabase, gone.id);
-      } catch (err) {
-        log(
-          `[failed] grok_bot_addable for ${gone.slug}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-    summary.deactivated++;
-    log(`[removed] ${gone.slug}`);
   }
 
   return summary;
+}
+
+function resolveCatalogTarget(
+  ref: string,
+  catalog: CatalogPlugin[],
+  existing: ExistingPlugin[],
+): { catalogPlugin: CatalogPlugin } | { gonePlugin: ExistingPlugin } {
+  const needle = ref.trim();
+  const lower = needle.toLowerCase();
+
+  const byId = catalog.find((p) => p.id === needle);
+  if (byId) return { catalogPlugin: byId };
+
+  const byName = catalog.filter((p) => p.name.toLowerCase() === lower);
+  if (byName.length === 1) return { catalogPlugin: byName[0] };
+  if (byName.length > 1) {
+    const list = byName.map((p) => `${p.name} (${p.id})`).join(", ");
+    throw new MarketplaceSyncError(
+      "ambiguous",
+      `Multiple marketplace plugins match "${needle}": ${list}. Pass the marketplace plugin ID instead.`,
+    );
+  }
+
+  const byDisplay = catalog.filter(
+    (p) => p.displayName.toLowerCase() === lower,
+  );
+  if (byDisplay.length === 1) return { catalogPlugin: byDisplay[0] };
+  if (byDisplay.length > 1) {
+    const list = byDisplay.map((p) => `${p.name} (${p.id})`).join(", ");
+    throw new MarketplaceSyncError(
+      "ambiguous",
+      `Multiple marketplace plugins match "${needle}": ${list}. Pass the marketplace plugin ID instead.`,
+    );
+  }
+
+  // Fall back to an already-synced row by directory UUID, slug, or marketplace ID.
+  const existingRow = existing.find(
+    (e) =>
+      e.id === needle ||
+      e.slug.toLowerCase() === lower ||
+      e.marketplace_plugin_id === needle,
+  );
+  if (existingRow) {
+    if (!existingRow.marketplace_plugin_id) {
+      throw new MarketplaceSyncError(
+        "not_found",
+        `"${existingRow.slug}" is a community plugin, not linked to a public Cursor Marketplace plugin.`,
+      );
+    }
+    const liveMatch = catalog.find(
+      (p) => p.id === existingRow.marketplace_plugin_id,
+    );
+    if (liveMatch) return { catalogPlugin: liveMatch };
+    return { gonePlugin: existingRow };
+  }
+
+  throw new MarketplaceSyncError(
+    "not_found",
+    `No approved, publicly listed marketplace plugin found matching "${needle}".`,
+  );
+}
+
+/**
+ * Syncs a single plugin from the Cursor Marketplace by marketplace ID,
+ * marketplace name, display name, or directory slug/UUID. Always rewrites the
+ * plugin's fields and components even if `marketplace_updated_at` matches.
+ * If an already-synced plugin left the catalog, deactivates or unlinks it.
+ */
+export async function syncMarketplacePlugin(
+  supabase: SupabaseClient,
+  ref: string,
+  log: (line: string) => void = () => {},
+): Promise<SyncPluginResult> {
+  const [catalog, existing] = await Promise.all([
+    fetchMarketplaceCatalog(),
+    fetchExisting(supabase),
+  ]);
+  const target = resolveCatalogTarget(ref, catalog, existing);
+  if ("gonePlugin" in target) {
+    return deactivateGonePlugin(supabase, target.gonePlugin, log);
+  }
+  return syncOneCatalogPlugin(
+    supabase,
+    target.catalogPlugin,
+    buildSyncState(existing),
+    { force: true, log },
+  );
 }

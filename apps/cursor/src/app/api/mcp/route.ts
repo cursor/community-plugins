@@ -54,4 +54,6 @@ const handler = withMcpAuth(
   { required: true, resourceMetadataPath: MCP_RESOURCE_METADATA_PATH },
 );
 
+export const maxDuration = 300;
+
 export { handler as DELETE, handler as GET, handler as POST };
